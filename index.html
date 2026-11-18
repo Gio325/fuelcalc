@@ -397,12 +397,16 @@
     price.focus();
   });
 
-  byId('reset').addEventListener('click', () => {
+  function clearCalculator() {
     distance.value = '';
     efficiency.value = '';
-    for (const key of Object.keys(manual)) delete manual[key];
     save();
     renderPrice();
+  }
+
+  byId('reset').addEventListener('click', () => {
+    for (const key of Object.keys(manual)) delete manual[key];
+    clearCalculator();
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -437,8 +441,10 @@
       tripError.hidden = false;
       return;
     }
+    delete manual[pendingTrip.fuel];
     pendingTrip = null;
     tripDialog.close();
+    clearCalculator();
     renderTrips();
     byId('history').open = true;
     const status = byId('trip-status');
