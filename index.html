@@ -74,6 +74,8 @@
   #history summary { cursor: pointer; padding: 10px 0; font-weight: 650; }
   #trips { list-style: none; padding: 0; margin: 0; }
   #trips li { border-top: 1px solid #424242; padding: 12px 0; overflow-wrap: anywhere; }
+  #clear-history { margin-top: 12px; }
+  #trips .month-total { display: flex; justify-content: space-between; gap: 8px; background: #181818; padding-inline: 10px; }
   #trips .meta { display: block; margin-top: 4px; }
 </style>
 </head>
@@ -123,6 +125,7 @@
     <summary>Storico viaggi</summary>
     <p id="empty-trips" class="meta">Nessun viaggio salvato.</p>
     <ul id="trips"></ul>
+    <button id="clear-history" type="button" hidden>Azzera storico</button>
   </details>
   <dialog id="trip-dialog" aria-labelledby="trip-title">
     <form id="trip-form">
@@ -133,6 +136,18 @@
       <div class="dialog-actions">
         <button id="cancel-trip" type="button">Annulla</button>
         <button type="submit">Salva</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="clear-dialog" aria-labelledby="clear-title">
+    <form id="clear-form">
+      <h2 id="clear-title">Elimina tutti i viaggi</h2>
+      <label class="field" for="clear-word">Scrivi CONFERMO per eliminare definitivamente lo storico.</label>
+      <span class="entry"><input id="clear-word" required autocomplete="off" spellcheck="false" autofocus></span>
+      <p id="clear-error" class="meta" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="cancel-clear" type="button">Annulla</button>
+        <button id="delete-trips" type="submit" disabled>Elimina storico</button>
       </div>
     </form>
   </dialog>
@@ -201,12 +216,39 @@
     }
   }
 
+  const tripMonth = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric', timeZone: 'Europe/Rome' });
+  const clearHistory = byId('clear-history');
+  const clearDialog = byId('clear-dialog');
+  const clearWord = byId('clear-word');
+  const clearError = byId('clear-error');
+  const deleteTrips = byId('delete-trips');
+
   function renderTrips() {
     const trips = loadTrips();
     byId('empty-trips').hidden = trips.length > 0;
+    clearHistory.hidden = trips.length === 0;
     const list = byId('trips');
     list.replaceChildren();
+    const monthlyTotals = new Map();
     for (const trip of trips) {
+      const month = tripMonth.format(trip.savedAt);
+      const cents = Math.round(trip.total * 100);
+      monthlyTotals.set(month, (monthlyTotals.get(month) ?? 0) + cents);
+    }
+    let displayedMonth;
+    for (const trip of trips) {
+      const month = tripMonth.format(trip.savedAt);
+      if (month !== displayedMonth) {
+        const heading = document.createElement('li');
+        heading.className = 'month-total';
+        const label = document.createElement('strong');
+        const amount = document.createElement('span');
+        label.textContent = month;
+        amount.textContent = 'Totale ' + euro.format(monthlyTotals.get(month) / 100);
+        heading.append(label, amount);
+        list.append(heading);
+        displayedMonth = month;
+      }
       const row = document.createElement('li');
       const name = document.createElement('strong');
       const details = document.createElement('span');
@@ -402,6 +444,34 @@
     const status = byId('trip-status');
     status.hidden = false;
     status.textContent = 'Viaggio salvato.';
+  });
+
+  clearHistory.addEventListener('click', () => {
+    if (!loadTrips().length || !window.confirm('Sei sicuro di voler eliminare tutti i viaggi salvati?')) return;
+    clearWord.value = '';
+    clearError.hidden = true;
+    deleteTrips.disabled = true;
+    clearDialog.showModal();
+  });
+  byId('cancel-clear').addEventListener('click', () => clearDialog.close());
+  clearWord.addEventListener('input', () => {
+    deleteTrips.disabled = clearWord.value !== 'CONFERMO';
+  });
+  byId('clear-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!clearDialog.open || clearWord.value !== 'CONFERMO') return;
+    try {
+      localStorage.removeItem(tripKey);
+    } catch {
+      clearError.textContent = 'Impossibile eliminare lo storico.';
+      clearError.hidden = false;
+      return;
+    }
+    clearDialog.close();
+    renderTrips();
+    const status = byId('trip-status');
+    status.textContent = 'Storico eliminato.';
+    status.hidden = false;
   });
 
   renderTrips();
