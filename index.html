@@ -28,6 +28,7 @@
   legend, label.field { font-size: 14px; font-weight: 600; }
   legend { margin-bottom: 7px; padding: 0; }
   .row, .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .choices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .choices label { position: relative; }
   .choices input { position: absolute; opacity: 0; }
   .choices span, button, .entry {
@@ -98,6 +99,7 @@
     <div class="choices">
       <label><input name="fuel" type="radio" value="benzina" checked><span>Benzina</span></label>
       <label><input name="fuel" type="radio" value="gpl"><span>GPL</span></label>
+      <label><input name="fuel" type="radio" value="diesel"><span>Diesel</span></label>
     </div>
   </fieldset>
   <div class="row">
@@ -185,7 +187,8 @@
   const endpoint = 'https://fuelwide.com/api/fuel-prices/italy';
   const sourceUrl = 'https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en';
   const sourceName = 'Commissione europea via FuelWide';
-  const fuelTypes = { benzina: 'petrol95', gpl: 'lpg' };
+  const fuelTypes = { benzina: 'petrol95', gpl: 'lpg', diesel: 'diesel' };
+  const fuelLabels = { benzina: 'Benzina', gpl: 'GPL', diesel: 'Diesel' };
   const storageKey = 'fuelcalc.v1';
   const byId = id => document.getElementById(id);
   const distance = byId('distance');
@@ -336,7 +339,7 @@
       const details = document.createElement('span');
       name.textContent = trip.vehicle + ' · ' + euro.format(trip.total);
       details.className = 'meta';
-      details.textContent = [checkTime.format(trip.savedAt), trip.fuel === 'gpl' ? 'GPL' : 'Benzina',
+      details.textContent = [checkTime.format(trip.savedAt), Object.hasOwn(fuelLabels, trip.fuel) ? fuelLabels[trip.fuel] : fuelLabels.benzina,
         decimal.format(trip.km) + ' km', decimal.format(trip.litres) + ' l'].join(' · ');
       const info = document.createElement('div');
       info.append(name, details);
@@ -374,7 +377,7 @@
   }
 
   const saved = load();
-  let fuel = saved.fuel === 'gpl' ? 'gpl' : 'benzina';
+  let fuel = Object.hasOwn(fuelTypes, saved.fuel) ? saved.fuel : 'benzina';
   const manual = {};
   const records = {};
   const recovered = new Set();
@@ -473,7 +476,7 @@
     } catch {
       // Conserva l'ultimo dato valido e lascia utilizzabile il prezzo manuale.
     }
-    checkStatus = recovered.size === 2 ? 'ok' : recovered.size === 1 ? 'partial' : 'failed';
+    checkStatus = recovered.size === Object.keys(fuelTypes).length ? 'ok' : recovered.size > 0 ? 'partial' : 'failed';
     checkedAt = Date.now();
     checking = false;
     save();
