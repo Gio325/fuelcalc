@@ -18,8 +18,9 @@
   * { box-sizing: border-box; }
   body { margin: 0; }
   main { width: min(100%, 460px); margin: auto; padding: 24px 18px; }
+  .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
   h1 {
-    margin: 0 0 20px;
+    margin: 0;
     font: 700 30px/1.1 ui-monospace, monospace;
     letter-spacing: -.07em;
   }
@@ -67,7 +68,10 @@
 </head>
 <body>
 <main>
-  <h1>FuelCalc</h1>
+  <header class="heading">
+    <h1>FuelCalc</h1>
+    <button id="reset" type="button" title="Azzera chilometri, consumo e prezzi manuali">Azzera dati</button>
+  </header>
   <fieldset>
     <legend>Carburante</legend>
     <div class="choices">
@@ -156,6 +160,7 @@
   const records = {};
   const recovered = new Set();
   let checkStatus = 'pending';
+  let checking = false;
   let checkedAt = Number.isFinite(saved.checkedAt) && Number.isFinite(new Date(saved.checkedAt).getTime()) ? saved.checkedAt : null;
   for (const key of Object.keys(fuelTypes)) {
     if (typeof saved.manual?.[key] === 'string') manual[key] = saved.manual[key].slice(0, 16);
@@ -222,6 +227,10 @@
   }
 
   async function refresh() {
+    if (checking) return;
+    checking = true;
+    checkStatus = 'pending';
+    renderPriceNote();
     recovered.clear();
     try {
       const response = await fetch(endpoint, { credentials: 'omit', signal: AbortSignal.timeout(6500) });
@@ -244,6 +253,7 @@
     }
     checkStatus = recovered.size === 2 ? 'ok' : recovered.size === 1 ? 'partial' : 'failed';
     checkedAt = Date.now();
+    checking = false;
     save();
     renderPrice();
   }
@@ -275,6 +285,18 @@
     save();
     renderPrice();
     price.focus();
+  });
+
+  byId('reset').addEventListener('click', () => {
+    distance.value = '';
+    efficiency.value = '';
+    for (const key of Object.keys(manual)) delete manual[key];
+    save();
+    renderPrice();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && Date.now() - checkedAt >= 60 * 60 * 1000) refresh();
   });
 
   renderPrice();
