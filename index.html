@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>FuelCalc</title>
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: system-ui, sans-serif;
+    background: #000;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  main { width: min(100%, 460px); margin: auto; padding: 24px 18px; }
+  h1 {
+    margin: 0 0 20px;
+    font: 700 30px/1.1 ui-monospace, monospace;
+    letter-spacing: -.07em;
+  }
+  fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
+  legend, label.field { font-size: 14px; font-weight: 600; }
+  legend { margin-bottom: 7px; padding: 0; }
+  .row, .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .choices label { position: relative; }
+  .choices input { position: absolute; opacity: 0; }
+  .choices span, button, .entry {
+    display: flex; align-items: center; min-height: 48px; border: 1px solid #525252;
+    border-radius: 10px; background: #121212; color: #fff;
+  }
+  .choices span, button { justify-content: center; font-weight: 650; cursor: pointer; }
+  .choices input:checked + span { background: #fff; color: #000; border-color: #fff; }
+  :focus-visible, .choices input:focus-visible + span, .entry:focus-within {
+    outline: 2px solid #fff; outline-offset: 2px;
+  }
+  .entry { margin-top: 7px; padding: 0 10px; gap: 4px; }
+  .entry input {
+    width: 100%; min-width: 0; min-height: 46px; padding: 0; border: 0;
+    background: transparent; color: inherit; font: 550 18px system-ui;
+  }
+  .entry input:focus { outline: none; }
+  .unit, .meta, dt { color: #acacac; }
+  .unit { font-size: 12px; white-space: nowrap; }
+  .price { margin-top: 16px; }
+  .price-row { display: flex; align-items: end; gap: 8px; }
+  .price-row label { flex: 1; min-width: 0; }
+  button { font: 600 13px system-ui; padding: 0 12px; }
+  [hidden] { display: none; }
+  .meta { font-size: 12px; line-height: 1.4; margin: 8px 0 0; }
+  a { color: inherit; }
+  .result {
+    margin-top: 18px; padding: 16px 12px;
+    border: 1px solid #424242; border-radius: 14px; background: #101010; text-align: center;
+  }
+  h2 { font-size: 14px; font-weight: 550; color: #bfbfbf; margin: 0; }
+  #total { display: block; font-size: clamp(32px, 10vw, 52px); font-weight: 750; letter-spacing: -.05em; overflow-wrap: anywhere; }
+  dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 14px 0 0; }
+  dl div + div { border-left: 1px solid #424242; }
+  dt { font-size: 12px; }
+  dd { margin: 4px 3px 0; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FuelCalc</h1>
+  <fieldset>
+    <legend>Carburante</legend>
+    <div class="choices">
+      <label><input name="fuel" type="radio" value="benzina" checked><span>Benzina</span></label>
+      <label><input name="fuel" type="radio" value="gpl"><span>GPL</span></label>
+    </div>
+  </fieldset>
+  <div class="row">
+    <label class="field" for="distance">Km percorsi
+      <span class="entry"><input id="distance" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit" aria-hidden="true">km</span></span>
+    </label>
+    <label class="field" for="efficiency">Consumo medio
+      <span class="entry"><input id="efficiency" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit">km/l</span></span>
+    </label>
+  </div>
+  <div class="price">
+    <div class="price-row">
+      <label class="field" for="price">Prezzo al litro
+        <span class="entry"><input id="price" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="—" aria-describedby="price-note"><span class="unit">€/l</span></span>
+      </label>
+      <button id="use-average" type="button" hidden>Usa la media</button>
+    </div>
+    <p class="meta" id="price-note" role="status">Verifica della media nazionale in corso…</p>
+    <p class="meta" id="last-check">Ultima verifica: —</p>
+  </div>
+  <section class="result" aria-labelledby="result-title">
+    <h2 id="result-title">Costo totale</h2>
+    <output id="total" aria-live="polite">—</output>
+    <dl>
+      <div><dt>Litri consumati</dt><dd id="litres">—</dd></div>
+      <div><dt>Per 100 km</dt><dd id="per-100">—</dd></div>
+      <div><dt>Per km</dt><dd id="per-km">—</dd></div>
+    </dl>
+  </section>
+</main>
+<script>
+  'use strict';
+
+  const endpoint = 'https://fuelwide.com/api/fuel-prices/italy';
+  const sourceUrl = 'https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en';
+  const sourceName = 'Commissione europea via FuelWide';
+  const fuelTypes = { benzina: 'petrol95', gpl: 'lpg' };
+  const storageKey = 'fuelcalc.v1';
+  const byId = id => document.getElementById(id);
+  const distance = byId('distance');
+  const efficiency = byId('efficiency');
+  const price = byId('price');
+  const priceNote = byId('price-note');
+  const useAverage = byId('use-average');
+  const radios = [...document.querySelectorAll('[name="fuel"]')];
+  const euro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+  const euroPerKm = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const decimal = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 });
+  const quote = new Intl.NumberFormat('it-IT', { useGrouping: false, minimumFractionDigits: 3, maximumFractionDigits: 6 });
+  const checkTime = new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Rome' });
+
+  function load() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey)) || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function numberFrom(text) {
+    const value = text.trim();
+    if (!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value)) return NaN;
+    return Number(value.replace(',', '.'));
+  }
+
+  function validDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) && new Date(timestamp).toISOString().slice(0, 10) === value
+      && timestamp <= Date.now() + 86400000;
+  }
+
+  function validRecord(record) {
+    return record && Number.isFinite(record.value) && record.value > 0
+      && validDate(record.date) && record.source === sourceName;
+  }
+
+  const saved = load();
+  let fuel = saved.fuel === 'gpl' ? 'gpl' : 'benzina';
+  const manual = {};
+  const records = {};
+  const recovered = new Set();
+  let checkStatus = 'pending';
+  let checkedAt = Number.isFinite(saved.checkedAt) && Number.isFinite(new Date(saved.checkedAt).getTime()) ? saved.checkedAt : null;
+  for (const key of Object.keys(fuelTypes)) {
+    if (typeof saved.manual?.[key] === 'string') manual[key] = saved.manual[key].slice(0, 16);
+    if (validRecord(saved.records?.[key])) records[key] = saved.records[key];
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        fuel, distance: distance.value, efficiency: efficiency.value, manual, records, checkedAt
+      }));
+    } catch {
+      // Il calcolatore resta utilizzabile quando il browser blocca la memoria locale.
+    }
+  }
+
+  function renderResults() {
+    const km = numberFrom(distance.value);
+    const kmPerLitre = numberFrom(efficiency.value);
+    const perLitre = numberFrom(price.value);
+    const litres = km >= 0 && kmPerLitre > 0 ? km / kmPerLitre : NaN;
+    const perKm = kmPerLitre > 0 && perLitre > 0 ? perLitre / kmPerLitre : NaN;
+    const total = litres * perLitre;
+    byId('total').textContent = perLitre > 0 && Number.isFinite(total) ? euro.format(total) : '—';
+    byId('litres').textContent = Number.isFinite(litres) ? decimal.format(litres) + ' l' : '—';
+    byId('per-100').textContent = Number.isFinite(perKm * 100) ? euro.format(perKm * 100) : '—';
+    byId('per-km').textContent = Number.isFinite(perKm) ? euroPerKm.format(perKm) : '—';
+  }
+
+  function renderPriceNote() {
+    const hasManual = Object.hasOwn(manual, fuel);
+    const record = records[fuel];
+    useAverage.hidden = !hasManual;
+    if (hasManual) {
+      priceNote.textContent = numberFrom(price.value) > 0
+        ? 'Prezzo manuale · data rilevazione non disponibile'
+        : 'Inserisci un prezzo al litro maggiore di zero.';
+    } else if (record) {
+      const date = record.date.split('-').reverse().join('/');
+      const status = recovered.has(fuel) ? 'Media Italia settimanale' : 'Media Italia salvata';
+      const link = document.createElement('a');
+      link.href = sourceUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = record.source;
+      priceNote.replaceChildren(status + ' · rilevazione ' + date, document.createElement('br'), link);
+    } else {
+      priceNote.textContent = checkStatus === 'pending'
+        ? 'Verifica della media nazionale in corso…'
+        : 'Media nazionale non disponibile. Inserisci il prezzo manualmente.';
+    }
+    const status = checkStatus === 'pending' ? ' · in corso'
+      : checkStatus === 'failed' ? ' · dati non disponibili'
+      : checkStatus === 'partial' ? ' · dati parziali' : '';
+    byId('last-check').textContent = 'Ultima verifica: ' + (checkedAt ? checkTime.format(checkedAt) : '—') + status;
+  }
+
+  function renderPrice() {
+    const record = records[fuel];
+    const value = manual[fuel] ?? (record ? quote.format(record.value) : '');
+    if (price.value !== value) price.value = value;
+    renderPriceNote();
+    renderResults();
+  }
+
+  async function refresh() {
+    recovered.clear();
+    try {
+      const response = await fetch(endpoint, { credentials: 'omit', signal: AbortSignal.timeout(6500) });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const data = await response.json();
+      if (data.country?.iso2 !== 'IT' || !Array.isArray(data.observations)) throw new Error('Risposta non valida');
+      for (const [key, fuelType] of Object.entries(fuelTypes)) {
+        const observation = data.observations.find(item => item?.fuelType === fuelType
+          && item.currency === 'EUR' && item.unit === 'litre' && item.taxIncluded === true
+          && item.geographicPrecision === 'national' && item.geography?.countryCode === 'IT'
+          && item.source?.id === 'ec-weekly-oil-bulletin');
+        const record = { value: observation?.price, date: observation?.observedAt, source: sourceName };
+        if (validRecord(record) && (!records[key] || record.date >= records[key].date)) {
+          records[key] = record;
+          recovered.add(key);
+        }
+      }
+    } catch {
+      // Conserva l'ultimo dato valido e lascia utilizzabile il prezzo manuale.
+    }
+    checkStatus = recovered.size === 2 ? 'ok' : recovered.size === 1 ? 'partial' : 'failed';
+    checkedAt = Date.now();
+    save();
+    renderPrice();
+  }
+
+  for (const radio of radios) {
+    radio.checked = radio.value === fuel;
+    radio.addEventListener('change', () => {
+      fuel = radio.value;
+      save();
+      renderPrice();
+    });
+  }
+  distance.value = typeof saved.distance === 'string' ? saved.distance.slice(0, 16) : '';
+  efficiency.value = typeof saved.efficiency === 'string' ? saved.efficiency.slice(0, 16) : '';
+  for (const field of [distance, efficiency]) {
+    field.addEventListener('input', () => {
+      save();
+      renderResults();
+    });
+  }
+  price.addEventListener('input', () => {
+    manual[fuel] = price.value;
+    save();
+    renderPriceNote();
+    renderResults();
+  });
+  useAverage.addEventListener('click', () => {
+    delete manual[fuel];
+    save();
+    renderPrice();
+    price.focus();
+  });
+
+  renderPrice();
+  refresh();
+</script>
+</body>
+</html>
