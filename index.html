@@ -140,6 +140,10 @@
       </form>
       <label class="field" for="history-vehicle">Viaggi del mezzo</label>
       <select class="entry" id="history-vehicle"></select>
+      <div class="dialog-actions" id="vehicle-actions" hidden>
+        <button type="button" id="rename-vehicle">Rinomina</button>
+        <button type="button" id="remove-vehicle">Rimuovi mezzo</button>
+      </div>
       <p id="vehicle-status" class="meta" role="status" hidden></p>
     </div>
     <p id="empty-trips" class="meta">Nessun viaggio salvato.</p>
@@ -242,25 +246,29 @@
     }
   }
 
-  function storedVehicles() {
+  function vehicleCatalog() {
     try {
-      const names = JSON.parse(localStorage.getItem(vehicleKey));
-      return Array.isArray(names) ? names.filter(name => typeof name === 'string') : [];
+      const saved = JSON.parse(localStorage.getItem(vehicleKey));
+      if (Array.isArray(saved)) return { active: saved, archived: [] };
+      if (Array.isArray(saved?.active) && Array.isArray(saved?.archived)) return saved;
     } catch {
-      return [];
+      // Usa un elenco vuoto quando i dati locali non sono leggibili.
     }
+    return { active: [], archived: [] };
   }
 
   function vehicleNames(trips = loadTrips()) {
-    return [...new Set([...storedVehicles(), ...trips.map(trip => trip.vehicle)])];
+    return [...new Set([...vehicleCatalog().active, ...trips.map(trip => trip.vehicle)])];
   }
 
   function addVehicle(name) {
-    const names = vehicleNames();
-    const existing = names.find(item => item.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'));
-    if (existing) return existing;
-    localStorage.setItem(vehicleKey, JSON.stringify([...names, name]));
-    return name;
+    const catalog = vehicleCatalog();
+    const existing = vehicleNames().find(item => item.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'));
+    const vehicle = existing ?? name;
+    catalog.active = [...new Set([...catalog.active, vehicle])];
+    catalog.archived = catalog.archived.filter(item => item !== vehicle);
+    localStorage.setItem(vehicleKey, JSON.stringify(catalog));
+    return vehicle;
   }
 
   function fillVehicleSelect(select, names) {
@@ -290,8 +298,14 @@
     const trips = loadTrips();
     const names = vehicleNames(trips);
     fillVehicleSelect(historyVehicle, names);
+    const archived = vehicleCatalog().archived;
+    for (const option of historyVehicle.options) {
+      if (archived.includes(option.value)) option.textContent += ' (archiviato)';
+    }
     historyVehicle.disabled = names.length === 0;
     historyVehicle.value = names.includes(selected) ? selected : (names[0] ?? '');
+    byId('vehicle-actions').hidden = names.length === 0;
+    byId('remove-vehicle').hidden = archived.includes(historyVehicle.value);
     const visibleTrips = [...trips.entries()].filter(([, trip]) => trip.vehicle === historyVehicle.value);
     byId('empty-trips').hidden = visibleTrips.length > 0;
     clearHistory.hidden = trips.length === 0;
@@ -514,7 +528,7 @@
   saveTrip.addEventListener('click', () => {
     if (!currentTrip) return;
     pendingTrip = currentTrip;
-    const names = vehicleNames();
+    const names = vehicleNames().filter(name => !vehicleCatalog().archived.includes(name));
     fillVehicleSelect(tripVehicle, names);
     const addOption = document.createElement('option');
     addOption.value = '';
@@ -529,6 +543,63 @@
   });
   tripVehicle.addEventListener('change', updateNewVehicleField);
   historyVehicle.addEventListener('change', () => renderTrips());
+  byId('rename-vehicle').addEventListener('click', () => {
+    const previous = historyVehicle.value;
+    if (!previous) return;
+    const name = window.prompt('Nuovo nome del mezzo', previous)?.trim();
+    if (!name || name === previous) return;
+    const status = byId('vehicle-status');
+    status.hidden = false;
+    if (name.length > 80 || vehicleNames().some(item => item !== previous && item.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'))) {
+      status.textContent = 'Scegli un nome diverso, di massimo 80 caratteri.';
+      return;
+    }
+    const catalog = vehicleCatalog();
+    const renamed = {
+      active: catalog.active.map(item => item === previous ? name : item),
+      archived: catalog.archived.map(item => item === previous ? name : item)
+    };
+    try {
+      localStorage.setItem(vehicleKey, JSON.stringify(renamed));
+      try {
+        const trips = loadTrips();
+        localStorage.setItem(tripKey, JSON.stringify(trips.map(trip =>
+          trip.vehicle === previous ? { ...trip, vehicle: name } : trip)));
+      } catch (error) {
+        localStorage.setItem(vehicleKey, JSON.stringify(catalog));
+        throw error;
+      }
+    } catch {
+      status.textContent = 'Impossibile rinominare il mezzo.';
+      return;
+    }
+    renderTrips(name);
+    status.textContent = 'Mezzo rinominato.';
+  });
+
+  byId('remove-vehicle').addEventListener('click', () => {
+    const name = historyVehicle.value;
+    if (!name) return;
+    const hasTrips = loadTrips().some(trip => trip.vehicle === name);
+    const message = hasTrips
+      ? 'Rimuovere il mezzo dall’elenco di salvataggio? I suoi viaggi resteranno nello storico.'
+      : 'Rimuovere questo mezzo?';
+    if (!window.confirm(message)) return;
+    const status = byId('vehicle-status');
+    status.hidden = false;
+    const catalog = vehicleCatalog();
+    catalog.active = catalog.active.filter(item => item !== name);
+    if (hasTrips && !catalog.archived.includes(name)) catalog.archived.push(name);
+    try {
+      localStorage.setItem(vehicleKey, JSON.stringify(catalog));
+    } catch {
+      status.textContent = 'Impossibile rimuovere il mezzo.';
+      return;
+    }
+    renderTrips();
+    status.textContent = hasTrips ? 'Mezzo archiviato.' : 'Mezzo rimosso.';
+  });
+
   byId('add-vehicle').addEventListener('submit', event => {
     event.preventDefault();
     const field = byId('add-vehicle-name');
@@ -611,7 +682,9 @@
 
   try {
     const names = vehicleNames();
-    if (names.length > storedVehicles().length) localStorage.setItem(vehicleKey, JSON.stringify(names));
+    const catalog = vehicleCatalog();
+    const active = names.filter(name => !catalog.archived.includes(name));
+    if (active.length > catalog.active.length) localStorage.setItem(vehicleKey, JSON.stringify({ ...catalog, active }));
   } catch {
     // I mezzi dei viaggi esistenti rimangono disponibili anche se la migrazione non riesce.
   }
