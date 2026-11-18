@@ -1,6 +1,6 @@
 # FuelCalc
 
-FuelCalc è una piccola web app per stimare quanto hai speso in benzina o GPL. Ti bastano i chilometri percorsi e il consumo medio in km/l.
+FuelCalc è una piccola web app per stimare quanto hai speso in benzina, GPL o diesel. Ti bastano i chilometri percorsi e il consumo medio in km/l.
 
 **[Apri FuelCalc](https://gio325.github.io/fuelcalc/)**
 
@@ -13,7 +13,7 @@ Apri la pagina almeno una volta con Internet per preparare l’uso offline. Dopo
 
 ## Come si usa
 
-1. Scegli **Benzina** o **GPL**.
+1. Scegli **Benzina**, **GPL** o **Diesel**.
 2. Inserisci i chilometri percorsi e il consumo medio in **km/l**. Puoi usare la virgola o il punto per i decimali.
 3. Usa il prezzo medio proposto oppure inserisci il prezzo al litro che hai pagato. Con **Usa la media** puoi tornare al prezzo automatico.
 
@@ -25,7 +25,7 @@ Il risultato si aggiorna mentre scrivi. Oltre al costo totale, vedi i litri cons
 
 ## Prezzi automatici e offline
 
-Le medie nazionali di benzina e GPL provengono dal [Weekly Oil Bulletin della Commissione europea](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en) tramite l’[API di FuelWide](https://fuelwide.com/fuel-prices-api). All’apertura dell’app viene verificata la disponibilità dei dati. La data della rilevazione settimanale e l’ora dell’ultima verifica sono mostrate separatamente.
+Le medie nazionali di benzina, GPL e diesel provengono dal [Weekly Oil Bulletin della Commissione europea](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en) tramite l’[API di FuelWide](https://fuelwide.com/fuel-prices-api). All’apertura dell’app viene verificata la disponibilità dei dati. La data della rilevazione settimanale e l’ora dell’ultima verifica sono mostrate separatamente.
 
 Il browser salva carburante, chilometri, consumo, prezzi manuali e ultime medie valide. Se la rete o l’API non sono disponibili, puoi usare la media già salvata oppure inserire il prezzo a mano.
 
