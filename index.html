@@ -10,79 +10,179 @@
 <style>
   :root {
     color-scheme: dark;
-    font-family: system-ui, sans-serif;
-    background: #000;
-    color: #fff;
+    font: 16px/1.45 system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
+    background: #0b0b0b;
+    color: #f5f5f3;
+    --panel: #151515;
+    --control: #202020;
+    --border: #404040;
+    --muted: #ababab;
+    --red: #fa4448;
+    --mono: ui-monospace, "Roboto Mono", monospace;
   }
   * { box-sizing: border-box; }
   body { margin: 0; }
-  main { width: min(100%, 460px); margin: auto; padding: 24px 18px; }
-  .heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  main {
+    width: min(100%, 510px);
+    margin: auto;
+    padding: max(24px, env(safe-area-inset-top)) clamp(14px, 5vw, 28px) max(28px, env(safe-area-inset-bottom));
+  }
+  .heading {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 82px;
+    margin-bottom: 14px;
+    padding: 12px;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .heading::before, .result::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background-image: radial-gradient(circle, #717171 1px, transparent 1.25px);
+    background-size: 6px 6px;
+    mask-image: linear-gradient(110deg, transparent 20%, #000);
+    opacity: .35;
+    pointer-events: none;
+  }
   h1 {
     margin: 0;
-    font: 700 30px/1.1 ui-monospace, monospace;
-    letter-spacing: -.07em;
+    font: 750 clamp(24px, 8vw, 43px)/1 var(--mono);
+    letter-spacing: -.09em;
   }
+  .calculator, .result, #history, dialog {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+  }
+  .calculator { padding: clamp(12px, 4vw, 20px); }
   fieldset { border: 0; padding: 0; margin: 0 0 16px; min-width: 0; }
-  legend, label.field { font-size: 14px; font-weight: 600; }
-  legend { margin-bottom: 7px; padding: 0; }
+  legend, label.field, h2 {
+    font: 650 .75rem/1.4 var(--mono);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+  }
+  legend { margin-bottom: 8px; padding: 0; }
   .row, .choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .choices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .choices label { position: relative; }
+  .choices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    background: #0d0d0d;
+    gap: 3px;
+  }
+  .choices label { position: relative; min-width: 0; }
   .choices input { position: absolute; opacity: 0; }
   .choices span, button, .entry {
-    display: flex; align-items: center; min-height: 48px; border: 1px solid #525252;
-    border-radius: 10px; background: #121212; color: #fff;
+    display: flex;
+    align-items: center;
+    min-height: 46px;
+    color: inherit;
   }
-  .choices span, button { justify-content: center; font-weight: 650; cursor: pointer; }
-  .choices input:checked + span { background: #fff; color: #000; border-color: #fff; }
+  .choices span, button {
+    justify-content: center;
+    border-radius: 100px;
+    cursor: pointer;
+    font: 680 .8125rem/1.2 system-ui, sans-serif;
+  }
+  .choices span { min-height: 44px; padding-inline: 3px; color: var(--muted); }
+  .choices input:checked + span { background: #f5f5f3; color: #101010; }
   :focus-visible, .choices input:focus-visible + span, .entry:focus-within {
-    outline: 2px solid #fff; outline-offset: 2px;
+    outline: 2px solid #f5f5f3;
+    outline-offset: 2px;
   }
-  .entry { margin-top: 7px; padding: 0 10px; gap: 4px; }
+  .entry {
+    margin-top: 7px;
+    padding: 0 11px;
+    gap: 4px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--control);
+    text-transform: none;
+    letter-spacing: normal;
+  }
   .entry input {
-    width: 100%; min-width: 0; min-height: 46px; padding: 0; border: 0;
-    background: transparent; color: inherit; font: 550 18px system-ui;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: 550 1.125rem var(--mono);
   }
   .entry input:focus { outline: none; }
-  .unit, .meta, dt { color: #acacac; }
-  .unit { font-size: 12px; white-space: nowrap; }
-  .price { margin-top: 16px; }
+  .unit, .meta, dt, h2 { color: var(--muted); }
+  .unit { font: .6875rem var(--mono); white-space: nowrap; text-transform: none; letter-spacing: normal; }
+  .price { margin-top: 14px; }
   .price-row { display: flex; align-items: end; gap: 8px; }
   .price-row label { flex: 1; min-width: 0; }
-  button { font: 600 13px system-ui; padding: 0 12px; }
-  [hidden] { display: none; }
-  .meta { font-size: 12px; line-height: 1.4; margin: 8px 0 0; }
-  a { color: inherit; }
-  .result {
-    margin-top: 18px; padding: 16px 12px;
-    border: 1px solid #424242; border-radius: 14px; background: #101010; text-align: center;
+  button { padding: 0 13px; border: 1px solid #555; background: var(--control); }
+  button:disabled { opacity: .52; cursor: default; }
+  #reset, #clear-history, #remove-vehicle, #delete-trips, .trip-row button {
+    background: var(--red);
+    border-color: var(--red);
+    color: #140405;
   }
-  h2 { font-size: 14px; font-weight: 550; color: #bfbfbf; margin: 0; }
-  #total { display: block; font-size: clamp(32px, 10vw, 52px); font-weight: 750; letter-spacing: -.05em; overflow-wrap: anywhere; }
-  dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 14px 0 0; }
-  dl div + div { border-left: 1px solid #424242; }
-  dt { font-size: 12px; }
-  dd { margin: 4px 3px 0; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
-  #save-trip { width: 100%; margin-top: 16px; }
-  button:disabled { opacity: .5; cursor: default; }
-  dialog { width: min(calc(100% - 32px), 400px); border: 1px solid #525252; border-radius: 14px; padding: 18px; background: #101010; color: #fff; }
-  dialog::backdrop { background: #000b; }
-  dialog h2 { color: #fff; font-size: 20px; margin-bottom: 16px; }
-  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  #history { margin-top: 20px; }
-  .vehicle-controls { display: grid; gap: 8px; margin-bottom: 12px; }
-  .vehicle-controls form { display: flex; gap: 8px; align-items: end; }
+  #reset { white-space: nowrap; }
+  [hidden] { display: none !important; }
+  .meta { font-size: .75rem; line-height: 1.45; margin: 7px 0 0; }
+  a { color: inherit; text-underline-offset: .2em; }
+  .result {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    margin-top: 12px;
+    padding: 16px clamp(12px, 4vw, 20px);
+    text-align: left;
+  }
+  .result::before { mask-image: linear-gradient(135deg, transparent 35%, #000); opacity: .27; }
+  h2 { margin: 0; }
+  #total {
+    display: block;
+    padding: 4px 0 10px;
+    font: 750 clamp(2.5rem, 11vw, 4.3rem)/1.08 var(--mono);
+    letter-spacing: -.09em;
+    overflow-wrap: anywhere;
+  }
+  dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 0; }
+  dl div { background: #202020; border-radius: 11px; padding: 8px 6px; text-align: center; }
+  dt { font-size: .6875rem; }
+  dd { margin: 3px 0 0; font: 680 .875rem var(--mono); overflow-wrap: anywhere; }
+  #save-trip, #trip-form button[type="submit"] { background: #f5f5f3; color: #101010; border-color: #f5f5f3; }
+  #save-trip { width: 100%; margin-top: 12px; }
+  dialog { width: min(calc(100% - 28px), 420px); padding: 20px; color: inherit; }
+  dialog::backdrop { background: #000c; }
+  dialog h2 { color: inherit; font-size: 1.125rem; margin-bottom: 14px; }
+  .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  #history { margin-top: 12px; padding: 0 clamp(12px, 4vw, 20px); }
+  #history[open] { padding-bottom: 16px; }
+  #history summary { cursor: pointer; padding: 15px 0; font: 700 .875rem/1.4 var(--mono); }
+  #history summary::marker { color: var(--muted); }
+  .vehicle-controls { display: grid; gap: 7px; margin-bottom: 12px; }
+  .vehicle-controls form { display: flex; gap: 8px; align-items: end; margin-bottom: 6px; }
   .vehicle-controls form label { flex: 1; min-width: 0; }
-  select.entry { width: 100%; padding: 0 10px; font: inherit; }
+  select.entry { width: 100%; padding: 0 11px; font: inherit; }
+  .vehicle-controls select { margin-top: 0; }
+  .vehicle-controls .dialog-actions { margin-top: 3px; }
   #new-vehicle-field { margin-top: 12px; }
-  #history summary { cursor: pointer; padding: 10px 0; font-weight: 650; }
   #trips { list-style: none; padding: 0; margin: 0; }
-  #trips li { border-top: 1px solid #424242; padding: 12px 0; overflow-wrap: anywhere; }
+  #trips li { padding: 10px 0; overflow-wrap: anywhere; }
   #clear-history { margin-top: 12px; }
-  #trips .month-total { display: flex; justify-content: space-between; gap: 8px; background: #181818; padding-inline: 10px; }
-  #trips .trip-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #trips .month-total {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px;
+    margin-top: 8px; background: var(--control); border-radius: 11px; padding-inline: 10px;
+    font: 650 .75rem/1.4 var(--mono);
+  }
+  #trips .trip-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); }
   #trips .trip-row > div { min-width: 0; }
   #trips .trip-row button { flex-shrink: 0; }
   #trips .meta { display: block; margin-top: 4px; }
@@ -94,32 +194,34 @@
     <h1>FuelCalc</h1>
     <button id="reset" type="button" title="Azzera chilometri, consumo e prezzi manuali">Azzera dati</button>
   </header>
-  <fieldset>
-    <legend>Carburante</legend>
-    <div class="choices">
-      <label><input name="fuel" type="radio" value="benzina" checked><span>Benzina</span></label>
-      <label><input name="fuel" type="radio" value="gpl"><span>GPL</span></label>
-      <label><input name="fuel" type="radio" value="diesel"><span>Diesel</span></label>
-    </div>
-  </fieldset>
-  <div class="row">
-    <label class="field" for="distance">Km percorsi
-      <span class="entry"><input id="distance" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit" aria-hidden="true">km</span></span>
-    </label>
-    <label class="field" for="efficiency">Consumo medio
-      <span class="entry"><input id="efficiency" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit">km/l</span></span>
-    </label>
-  </div>
-  <div class="price">
-    <div class="price-row">
-      <label class="field" for="price">Prezzo al litro
-        <span class="entry"><input id="price" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="—" aria-describedby="price-note"><span class="unit">€/l</span></span>
+  <section class="calculator" aria-label="Calcolatore carburante">
+    <fieldset>
+      <legend>Carburante</legend>
+      <div class="choices">
+        <label><input name="fuel" type="radio" value="benzina" checked><span>Benzina</span></label>
+        <label><input name="fuel" type="radio" value="gpl"><span>GPL</span></label>
+        <label><input name="fuel" type="radio" value="diesel"><span>Diesel</span></label>
+      </div>
+    </fieldset>
+    <div class="row">
+      <label class="field" for="distance">Km percorsi
+        <span class="entry"><input id="distance" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit" aria-hidden="true">km</span></span>
       </label>
-      <button id="use-average" type="button" hidden>Usa la media</button>
+      <label class="field" for="efficiency">Consumo medio
+        <span class="entry"><input id="efficiency" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit">km/l</span></span>
+      </label>
     </div>
-    <p class="meta" id="price-note" role="status">Verifica della media nazionale in corso…</p>
-    <p class="meta" id="last-check">Ultima verifica: —</p>
-  </div>
+    <div class="price">
+      <div class="price-row">
+        <label class="field" for="price">Prezzo al litro
+          <span class="entry"><input id="price" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="—" aria-describedby="price-note"><span class="unit">€/l</span></span>
+        </label>
+        <button id="use-average" type="button" hidden>Usa la media</button>
+      </div>
+      <p class="meta" id="price-note" role="status">Verifica della media nazionale in corso…</p>
+      <p class="meta" id="last-check">Ultima verifica: —</p>
+    </div>
+  </section>
   <section class="result" aria-labelledby="result-title">
     <h2 id="result-title">Costo totale</h2>
     <output id="total" aria-live="polite">—</output>
