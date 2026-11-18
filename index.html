@@ -64,6 +64,17 @@
   dl div + div { border-left: 1px solid #424242; }
   dt { font-size: 12px; }
   dd { margin: 4px 3px 0; font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
+  #save-trip { width: 100%; margin-top: 16px; }
+  button:disabled { opacity: .5; cursor: default; }
+  dialog { width: min(calc(100% - 32px), 400px); border: 1px solid #525252; border-radius: 14px; padding: 18px; background: #101010; color: #fff; }
+  dialog::backdrop { background: #000b; }
+  dialog h2 { color: #fff; font-size: 20px; margin-bottom: 16px; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  #history { margin-top: 20px; }
+  #history summary { cursor: pointer; padding: 10px 0; font-weight: 650; }
+  #trips { list-style: none; padding: 0; margin: 0; }
+  #trips li { border-top: 1px solid #424242; padding: 12px 0; overflow-wrap: anywhere; }
+  #trips .meta { display: block; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -105,7 +116,26 @@
       <div><dt>Per 100 km</dt><dd id="per-100">—</dd></div>
       <div><dt>Per km</dt><dd id="per-km">—</dd></div>
     </dl>
+    <button id="save-trip" type="button" disabled>Salva viaggio</button>
   </section>
+  <p id="trip-status" class="meta" role="status" hidden></p>
+  <details id="history">
+    <summary>Storico viaggi</summary>
+    <p id="empty-trips" class="meta">Nessun viaggio salvato.</p>
+    <ul id="trips"></ul>
+  </details>
+  <dialog id="trip-dialog" aria-labelledby="trip-title">
+    <form id="trip-form">
+      <h2 id="trip-title">Salva viaggio</h2>
+      <label for="vehicle-name" class="field">Nome del mezzo</label>
+      <span class="entry"><input id="vehicle-name" required maxlength="80" placeholder="Es. MiTo" autofocus></span>
+      <p id="trip-error" class="meta" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="cancel-trip" type="button">Annulla</button>
+        <button type="submit">Salva</button>
+      </div>
+    </form>
+  </dialog>
 </main>
 <script>
   'use strict';
@@ -154,6 +184,41 @@
       && validDate(record.date) && record.source === sourceName;
   }
 
+  const tripKey = 'fuelcalc.trips.v1';
+  const saveTrip = byId('save-trip');
+  const tripDialog = byId('trip-dialog');
+  const vehicleName = byId('vehicle-name');
+  const tripError = byId('trip-error');
+  let currentTrip;
+  let pendingTrip;
+
+  function loadTrips() {
+    try {
+      const entries = JSON.parse(localStorage.getItem(tripKey));
+      return Array.isArray(entries) ? entries : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function renderTrips() {
+    const trips = loadTrips();
+    byId('empty-trips').hidden = trips.length > 0;
+    const list = byId('trips');
+    list.replaceChildren();
+    for (const trip of trips) {
+      const row = document.createElement('li');
+      const name = document.createElement('strong');
+      const details = document.createElement('span');
+      name.textContent = trip.vehicle + ' · ' + euro.format(trip.total);
+      details.className = 'meta';
+      details.textContent = [checkTime.format(trip.savedAt), trip.fuel === 'gpl' ? 'GPL' : 'Benzina',
+        decimal.format(trip.km) + ' km', decimal.format(trip.litres) + ' l'].join(' · ');
+      row.append(name, details);
+      list.append(row);
+    }
+  }
+
   const saved = load();
   let fuel = saved.fuel === 'gpl' ? 'gpl' : 'benzina';
   const manual = {};
@@ -184,6 +249,9 @@
     const litres = km >= 0 && kmPerLitre > 0 ? km / kmPerLitre : NaN;
     const perKm = kmPerLitre > 0 && perLitre > 0 ? perLitre / kmPerLitre : NaN;
     const total = litres * perLitre;
+    currentTrip = km > 0 && perLitre > 0 && Number.isFinite(total)
+      ? { fuel, km, litres, total } : null;
+    saveTrip.disabled = !currentTrip;
     byId('total').textContent = perLitre > 0 && Number.isFinite(total) ? euro.format(total) : '—';
     byId('litres').textContent = Number.isFinite(litres) ? decimal.format(litres) + ' l' : '—';
     byId('per-100').textContent = Number.isFinite(perKm * 100) ? euro.format(perKm * 100) : '—';
@@ -299,6 +367,44 @@
     if (document.visibilityState === 'visible' && Date.now() - checkedAt >= 60 * 60 * 1000) refresh();
   });
 
+  saveTrip.addEventListener('click', () => {
+    if (!currentTrip) return;
+    pendingTrip = currentTrip;
+    vehicleName.value = '';
+    tripError.hidden = true;
+    byId('trip-status').hidden = true;
+    tripDialog.showModal();
+  });
+  byId('cancel-trip').addEventListener('click', () => tripDialog.close());
+  byId('trip-form').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!pendingTrip) return;
+    const vehicle = vehicleName.value.trim();
+    if (!vehicle) {
+      tripError.textContent = 'Inserisci il nome del mezzo.';
+      tripError.hidden = false;
+      vehicleName.focus();
+      return;
+    }
+    try {
+      const trips = loadTrips();
+      trips.unshift({ ...pendingTrip, vehicle, savedAt: Date.now() });
+      localStorage.setItem(tripKey, JSON.stringify(trips));
+    } catch {
+      tripError.textContent = 'Impossibile salvare il viaggio sul dispositivo.';
+      tripError.hidden = false;
+      return;
+    }
+    pendingTrip = null;
+    tripDialog.close();
+    renderTrips();
+    byId('history').open = true;
+    const status = byId('trip-status');
+    status.hidden = false;
+    status.textContent = 'Viaggio salvato.';
+  });
+
+  renderTrips();
   renderPrice();
   refresh();
 
