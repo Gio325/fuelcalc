@@ -132,7 +132,8 @@
     border-color: var(--red);
     color: #140405;
   }
-  #reset { white-space: nowrap; }
+  #reset { align-self: flex-end; margin-top: 12px; white-space: nowrap; }
+  .calculator-actions { display: flex; justify-content: flex-end; }
   [hidden] { display: none !important; }
   .meta { font-size: .75rem; line-height: 1.45; margin: 7px 0 0; }
   a { color: inherit; text-underline-offset: .2em; }
@@ -192,7 +193,6 @@
 <main>
   <header class="heading">
     <h1>FuelCalc</h1>
-    <button id="reset" type="button" title="Azzera chilometri, consumo e prezzi manuali">Azzera dati</button>
   </header>
   <section class="calculator" aria-label="Calcolatore carburante">
     <fieldset>
@@ -220,6 +220,9 @@
       </div>
       <p class="meta" id="price-note" role="status">Verifica della media nazionale in corso…</p>
       <p class="meta" id="last-check">Ultima verifica: —</p>
+    </div>
+    <div class="calculator-actions">
+      <button id="reset" type="button" title="Azzera chilometri, consumo e prezzi manuali">Azzera dati</button>
     </div>
   </section>
   <section class="result" aria-labelledby="result-title">
