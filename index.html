@@ -71,6 +71,11 @@
   dialog h2 { color: #fff; font-size: 20px; margin-bottom: 16px; }
   .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
   #history { margin-top: 20px; }
+  .vehicle-controls { display: grid; gap: 8px; margin-bottom: 12px; }
+  .vehicle-controls form { display: flex; gap: 8px; align-items: end; }
+  .vehicle-controls form label { flex: 1; min-width: 0; }
+  select.entry { width: 100%; padding: 0 10px; font: inherit; }
+  #new-vehicle-field { margin-top: 12px; }
   #history summary { cursor: pointer; padding: 10px 0; font-weight: 650; }
   #trips { list-style: none; padding: 0; margin: 0; }
   #trips li { border-top: 1px solid #424242; padding: 12px 0; overflow-wrap: anywhere; }
@@ -126,6 +131,17 @@
   <p id="trip-status" class="meta" role="status" hidden></p>
   <details id="history">
     <summary>Storico viaggi</summary>
+    <div class="vehicle-controls">
+      <form id="add-vehicle">
+        <label class="field" for="add-vehicle-name">Nuovo mezzo
+          <span class="entry"><input id="add-vehicle-name" required maxlength="80" placeholder="Es. MiTo"></span>
+        </label>
+        <button type="submit">Aggiungi</button>
+      </form>
+      <label class="field" for="history-vehicle">Viaggi del mezzo</label>
+      <select class="entry" id="history-vehicle"></select>
+      <p id="vehicle-status" class="meta" role="status" hidden></p>
+    </div>
     <p id="empty-trips" class="meta">Nessun viaggio salvato.</p>
     <ul id="trips"></ul>
     <button id="clear-history" type="button" hidden>Azzera storico</button>
@@ -133,8 +149,12 @@
   <dialog id="trip-dialog" aria-labelledby="trip-title">
     <form id="trip-form">
       <h2 id="trip-title">Salva viaggio</h2>
-      <label for="vehicle-name" class="field">Nome del mezzo</label>
-      <span class="entry"><input id="vehicle-name" required maxlength="80" placeholder="Es. MiTo" autofocus></span>
+      <label for="trip-vehicle" class="field">Mezzo del viaggio</label>
+      <select id="trip-vehicle" class="entry"></select>
+      <div id="new-vehicle-field" hidden>
+        <label for="vehicle-name" class="field">Nome del nuovo mezzo</label>
+        <span class="entry"><input id="vehicle-name" maxlength="80" placeholder="Es. MiTo"></span>
+      </div>
       <p id="trip-error" class="meta" role="alert" hidden></p>
       <div class="dialog-actions">
         <button id="cancel-trip" type="button">Annulla</button>
@@ -206,6 +226,9 @@
   const saveTrip = byId('save-trip');
   const tripDialog = byId('trip-dialog');
   const vehicleName = byId('vehicle-name');
+  const tripVehicle = byId('trip-vehicle');
+  const historyVehicle = byId('history-vehicle');
+  const vehicleKey = 'fuelcalc.vehicles.v1';
   const tripError = byId('trip-error');
   let currentTrip;
   let pendingTrip;
@@ -219,6 +242,43 @@
     }
   }
 
+  function storedVehicles() {
+    try {
+      const names = JSON.parse(localStorage.getItem(vehicleKey));
+      return Array.isArray(names) ? names.filter(name => typeof name === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function vehicleNames(trips = loadTrips()) {
+    return [...new Set([...storedVehicles(), ...trips.map(trip => trip.vehicle)])];
+  }
+
+  function addVehicle(name) {
+    const names = vehicleNames();
+    const existing = names.find(item => item.toLocaleLowerCase('it') === name.toLocaleLowerCase('it'));
+    if (existing) return existing;
+    localStorage.setItem(vehicleKey, JSON.stringify([...names, name]));
+    return name;
+  }
+
+  function fillVehicleSelect(select, names) {
+    select.replaceChildren();
+    for (const name of names) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      select.append(option);
+    }
+  }
+
+  function updateNewVehicleField() {
+    const adding = tripVehicle.value === '';
+    byId('new-vehicle-field').hidden = !adding;
+    vehicleName.required = adding;
+  }
+
   const tripMonth = new Intl.DateTimeFormat('it-IT', { month: 'long', year: 'numeric', timeZone: 'Europe/Rome' });
   const clearHistory = byId('clear-history');
   const clearDialog = byId('clear-dialog');
@@ -226,20 +286,25 @@
   const clearError = byId('clear-error');
   const deleteTrips = byId('delete-trips');
 
-  function renderTrips() {
+  function renderTrips(selected = historyVehicle.value) {
     const trips = loadTrips();
-    byId('empty-trips').hidden = trips.length > 0;
+    const names = vehicleNames(trips);
+    fillVehicleSelect(historyVehicle, names);
+    historyVehicle.disabled = names.length === 0;
+    historyVehicle.value = names.includes(selected) ? selected : (names[0] ?? '');
+    const visibleTrips = [...trips.entries()].filter(([, trip]) => trip.vehicle === historyVehicle.value);
+    byId('empty-trips').hidden = visibleTrips.length > 0;
     clearHistory.hidden = trips.length === 0;
     const list = byId('trips');
     list.replaceChildren();
     const monthlyTotals = new Map();
-    for (const trip of trips) {
+    for (const [, trip] of visibleTrips) {
       const month = tripMonth.format(trip.savedAt);
       const cents = Math.round(trip.total * 100);
       monthlyTotals.set(month, (monthlyTotals.get(month) ?? 0) + cents);
     }
     let displayedMonth;
-    for (const [index, trip] of trips.entries()) {
+    for (const [index, trip] of visibleTrips) {
       const month = tripMonth.format(trip.savedAt);
       if (month !== displayedMonth) {
         const heading = document.createElement('li');
@@ -449,17 +514,47 @@
   saveTrip.addEventListener('click', () => {
     if (!currentTrip) return;
     pendingTrip = currentTrip;
+    const names = vehicleNames();
+    fillVehicleSelect(tripVehicle, names);
+    const addOption = document.createElement('option');
+    addOption.value = '';
+    addOption.textContent = 'Aggiungi un mezzo';
+    tripVehicle.append(addOption);
+    tripVehicle.value = names.includes(historyVehicle.value) ? historyVehicle.value : (names[0] ?? '');
     vehicleName.value = '';
+    updateNewVehicleField();
     tripError.hidden = true;
     byId('trip-status').hidden = true;
     tripDialog.showModal();
   });
+  tripVehicle.addEventListener('change', updateNewVehicleField);
+  historyVehicle.addEventListener('change', () => renderTrips());
+  byId('add-vehicle').addEventListener('submit', event => {
+    event.preventDefault();
+    const field = byId('add-vehicle-name');
+    const name = field.value.trim();
+    const status = byId('vehicle-status');
+    status.hidden = false;
+    if (!name) {
+      status.textContent = 'Inserisci il nome del mezzo.';
+      return;
+    }
+    try {
+      const vehicle = addVehicle(name);
+      renderTrips(vehicle);
+      field.value = '';
+      status.textContent = 'Mezzo disponibile nello storico.';
+    } catch {
+      status.textContent = 'Impossibile salvare il mezzo sul dispositivo.';
+    }
+  });
   byId('cancel-trip').addEventListener('click', () => tripDialog.close());
   byId('trip-form').addEventListener('submit', event => {
     event.preventDefault();
-    if (!pendingTrip) return;
-    const vehicle = vehicleName.value.trim();
-    if (!vehicle) {
+    if (!pendingTrip || !tripDialog.open) return;
+    const name = tripVehicle.value || vehicleName.value.trim();
+    let vehicle;
+    if (!name) {
       tripError.textContent = 'Inserisci il nome del mezzo.';
       tripError.hidden = false;
       vehicleName.focus();
@@ -467,6 +562,7 @@
     }
     try {
       const trips = loadTrips();
+      vehicle = tripVehicle.value || addVehicle(name);
       trips.unshift({ ...pendingTrip, vehicle, savedAt: Date.now() });
       localStorage.setItem(tripKey, JSON.stringify(trips));
     } catch {
@@ -478,7 +574,7 @@
     pendingTrip = null;
     tripDialog.close();
     clearCalculator();
-    renderTrips();
+    renderTrips(vehicle);
     byId('history').open = true;
     const status = byId('trip-status');
     status.hidden = false;
@@ -513,6 +609,12 @@
     status.hidden = false;
   });
 
+  try {
+    const names = vehicleNames();
+    if (names.length > storedVehicles().length) localStorage.setItem(vehicleKey, JSON.stringify(names));
+  } catch {
+    // I mezzi dei viaggi esistenti rimangono disponibili anche se la migrazione non riesce.
+  }
   renderTrips();
   renderPrice();
   refresh();
