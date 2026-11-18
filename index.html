@@ -76,6 +76,9 @@
   #trips li { border-top: 1px solid #424242; padding: 12px 0; overflow-wrap: anywhere; }
   #clear-history { margin-top: 12px; }
   #trips .month-total { display: flex; justify-content: space-between; gap: 8px; background: #181818; padding-inline: 10px; }
+  #trips .trip-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #trips .trip-row > div { min-width: 0; }
+  #trips .trip-row button { flex-shrink: 0; }
   #trips .meta { display: block; margin-top: 4px; }
 </style>
 </head>
@@ -236,7 +239,7 @@
       monthlyTotals.set(month, (monthlyTotals.get(month) ?? 0) + cents);
     }
     let displayedMonth;
-    for (const trip of trips) {
+    for (const [index, trip] of trips.entries()) {
       const month = tripMonth.format(trip.savedAt);
       if (month !== displayedMonth) {
         const heading = document.createElement('li');
@@ -256,9 +259,39 @@
       details.className = 'meta';
       details.textContent = [checkTime.format(trip.savedAt), trip.fuel === 'gpl' ? 'GPL' : 'Benzina',
         decimal.format(trip.km) + ' km', decimal.format(trip.litres) + ' l'].join(' · ');
-      row.append(name, details);
+      const info = document.createElement('div');
+      info.append(name, details);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Elimina';
+      remove.setAttribute('aria-label', 'Elimina viaggio di ' + trip.vehicle + ' del ' + checkTime.format(trip.savedAt));
+      remove.addEventListener('click', () => removeTrip(trips, index));
+      row.className = 'trip-row';
+      row.append(info, remove);
       list.append(row);
     }
+  }
+
+  function removeTrip(trips, index) {
+    if (!window.confirm('Eliminare questo viaggio dallo storico?')) return;
+    const status = byId('trip-status');
+    status.hidden = false;
+    const latest = loadTrips();
+    if (JSON.stringify(latest) !== JSON.stringify(trips)) {
+      renderTrips();
+      status.textContent = 'Lo storico è cambiato. Seleziona di nuovo il viaggio.';
+      return;
+    }
+    try {
+      latest.splice(index, 1);
+      localStorage.setItem(tripKey, JSON.stringify(latest));
+    } catch {
+      status.textContent = 'Impossibile eliminare il viaggio.';
+      return;
+    }
+    renderTrips();
+    byId('history').querySelector('summary').focus();
+    status.textContent = 'Viaggio eliminato.';
   }
 
   const saved = load();
