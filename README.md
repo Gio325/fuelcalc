@@ -1,34 +1,45 @@
 # FuelCalc
 
-FuelCalc è una piccola web app per stimare quanto hai speso in benzina, GPL o diesel. Ti bastano i chilometri percorsi e il consumo medio in km/l.
+Calcola quanto spendi in **benzina, GPL o diesel** e tieni traccia dei viaggi per mezzo.
 
-**[Apri FuelCalc](https://gio325.github.io/fuelcalc/)**
+**[Apri la web app](https://gio325.github.io/fuelcalc/)** · **[Release Android su GitHub](https://github.com/Gio325/fuelcalc/releases)**
 
-## Installazione su smartphone
+## Scegli la versione
 
-- **Android** — apri FuelCalc in Chrome. Dal menu **⋮** scegli **Aggiungi a schermata Home**, quindi **Installa** se disponibile.
-- **iPhone** — apri FuelCalc in Safari. Tocca **Condividi**, scegli **Aggiungi alla schermata Home** e abilita **Apri come app web** se l’opzione è presente.
+| Versione | Come si usa |
+| --- | --- |
+| **Android 1.0.0** | App nativa in Kotlin e Jetpack Compose, disponibile come APK firmato. Richiede Android 8.0 o successivo. |
+| **Web** | Funziona nel browser e si può aggiungere alla schermata Home su Android e iPhone. |
 
-Apri la pagina almeno una volta con Internet per preparare l’uso offline. Dopo il primo caricamento puoi riaprire l’app dalla sua icona e usare un prezzo manuale o l’ultima media salvata.
+Su Android, apri l’APK e segui la richiesta di installazione del telefono. La release usa una firma dedicata. Un APK debug precedente con firma diversa blocca l’aggiornamento diretto. La disinstallazione elimina lo storico locale.
 
-## Come si usa
+Per aggiungere la web app alla schermata Home, usa **⋮ → Aggiungi a schermata Home** in Chrome oppure **Condividi → Aggiungi alla schermata Home** in Safari. Aprila almeno una volta con Internet per preparare l’uso offline.
 
-1. Scegli **Benzina**, **GPL** o **Diesel**.
-2. Inserisci i chilometri percorsi e il consumo medio in **km/l**. Puoi usare la virgola o il punto per i decimali.
-3. Usa il prezzo medio proposto oppure inserisci il prezzo al litro che hai pagato. Con **Usa la media** puoi tornare al prezzo automatico.
+## Cosa puoi fare
 
-Il risultato si aggiorna mentre scrivi. Oltre al costo totale, vedi i litri consumati, il costo per 100 km e il costo per km.
+- Calcolare costo totale, litri consumati, costo per 100 km e costo per km.
+- Usare le medie nazionali di benzina, GPL e diesel oppure digitare il prezzo al litro.
+- Salvare i viaggi per mezzo e vedere i totali mensili.
+- Aggiungere, rinominare e archiviare un mezzo con viaggi associati.
+- Eliminare singoli viaggi oppure azzerare lo storico con una doppia conferma.
 
-**Esempio di calcolo.** Con 150 km, un consumo di 12,5 km/l e un prezzo di esempio di 0,80 €/l, consumi 12 litri e spendi **9,60 €**. Sono 6,40 € ogni 100 km, ossia 0,064 € al km.
+## Come si calcola la spesa
+
+Scegli il carburante, inserisci i chilometri percorsi e il consumo medio in **km/l**. Puoi usare la virgola o il punto per i decimali. Per tornare al prezzo automatico, seleziona **Usa la media**.
+
+**Esempio.** Con 150 km, 12,5 km/l e 0,80 €/l, consumi 12 litri e spendi **9,60 €**: 6,40 € ogni 100 km e 0,064 € al km.
 
 `Costo totale = (km percorsi ÷ km/l) × prezzo al litro`
 
-## Prezzi automatici e offline
+## Prezzi, offline e dati
 
-Le medie nazionali di benzina, GPL e diesel provengono dal [Weekly Oil Bulletin della Commissione europea](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en) tramite l’[API di FuelWide](https://fuelwide.com/fuel-prices-api). All’apertura dell’app viene verificata la disponibilità dei dati. La data della rilevazione settimanale e l’ora dell’ultima verifica sono mostrate separatamente.
+Le medie settimanali italiane provengono dal [Weekly Oil Bulletin della Commissione europea](https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en) tramite [FuelWide](https://fuelwide.com/fuel-prices-api). L’app mostra separatamente la data della rilevazione e l’ora dell’ultima verifica. Offline puoi usare l’ultima media salvata o un prezzo manuale.
 
-Il browser salva carburante, chilometri, consumo, prezzi manuali e ultime medie valide. Se la rete o l’API non sono disponibili, puoi usare la media già salvata oppure inserire il prezzo a mano.
+Lo storico è locale. Il browser conserva quello della web app, Android usa Room per i viaggi e i mezzi e DataStore per le preferenze. I due storici sono indipendenti.
 
-## Uso locale
+## Sviluppo
 
-Scarica e apri [`index.html`](./index.html) nel browser. Il file contiene tutto il codice HTML, CSS e JavaScript. Per usare il calcolatore senza connessione, apri la copia locale. Il salvataggio delle preferenze da file locale dipende dal browser.
+- **Web:** apri [`index.html`](./index.html). HTML, CSS e JavaScript gestiscono il calcolatore. Il manifest e il service worker aggiungono l’installazione e l’offline per la PWA.
+- **Android:** apri il progetto FuelCalc in Android Studio con JDK 17 e SDK 35. Esegui `./gradlew :app:assembleRelease :app:testReleaseUnitTest :app:lintRelease`. L’APK generato da Gradle va firmato per distribuirlo.
+
+[Note sulle versioni](./CHANGELOG.md)
