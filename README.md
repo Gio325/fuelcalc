@@ -4,6 +4,13 @@ FuelCalc è una piccola web app per stimare quanto hai speso in benzina o GPL. T
 
 **[Apri FuelCalc](https://gio325.github.io/fuelcalc/)**
 
+## Installazione su smartphone
+
+- **Android** — apri FuelCalc in Chrome. Dal menu **⋮** scegli **Aggiungi a schermata Home**, quindi **Installa** se disponibile.
+- **iPhone** — apri FuelCalc in Safari. Tocca **Condividi**, scegli **Aggiungi alla schermata Home** e abilita **Apri come app web** se l’opzione è presente.
+
+Apri la pagina almeno una volta con Internet per preparare l’uso offline. Dopo il primo caricamento puoi riaprire l’app dalla sua icona e usare un prezzo manuale o l’ultima media salvata.
+
 ## Come si usa
 
 1. Scegli **Benzina** o **GPL**.
