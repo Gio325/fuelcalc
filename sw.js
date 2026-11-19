@@ -1,5 +1,5 @@
 const cachePrefix = 'fuelcalc-shell-';
-const cacheName = cachePrefix + 'v2';
+const cacheName = cachePrefix + 'v3';
 const home = new URL('./', self.location.href).href;
 const index = new URL('./index.html', self.location.href).href;
 

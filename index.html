@@ -241,6 +241,8 @@
   }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
   #gpl-settings { margin-top: 12px; }
+  #gpl-reading-summary { display: block; margin-top: 8px; }
+  #gpl-reading-summary strong { display: block; font-size: 1.15rem; margin-bottom: 4px; }
   #gpl-settings summary { cursor: pointer; padding: 9px 0; font-weight: 700; }
   #gpl-settings select, #gpl-settings input { width: 100%; max-width: 100%; min-width: 0; }
   #gpl-settings .field { display: block; margin-top: 8px; }
@@ -267,18 +269,20 @@
       <label class="field" for="distance">Km percorsi
         <span class="entry"><input id="distance" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit" aria-hidden="true">km</span></span>
       </label>
-      <label class="field" for="efficiency">Consumo medio
+      <label class="field" for="efficiency"><span id="efficiency-label">Consumo medio</span>
         <span class="entry"><input id="efficiency" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit">km/l</span></span>
       </label>
     </div>
     <section id="gpl-settings" hidden>
-      <details>
-        <summary>Correzione consumo GPL</summary>
-        <label class="field" for="gpl-mode">Origine del consumo</label>
-        <select class="entry" id="gpl-mode">
-          <option value="real">Consumo GPL reale</option>
-          <option value="board">Computer di bordo</option>
-        </select>
+      <label class="field" for="gpl-mode">Dato inserito</label>
+      <select class="entry" id="gpl-mode">
+        <option value="board">Computer di bordo</option>
+        <option value="real">GPL misurato ai pieni</option>
+      </select>
+      <output id="gpl-reading-summary" for="efficiency gpl-mode"></output>
+      <p class="meta" id="gpl-active-source"></p>
+      <details id="gpl-advanced">
+        <summary>Profilo e calibrazione GPL</summary>
         <div id="gpl-board" hidden>
           <label class="field" for="gpl-vehicle">Impostazioni GPL del mezzo</label>
           <select class="entry" id="gpl-vehicle"></select>
@@ -306,9 +310,7 @@
           <p class="meta" id="gpl-coefficient" role="status"></p>
         </div>
       </details>
-      <p class="meta">Il computer di bordo di alcune auto GPL può mostrare consumi calcolati sulla base della gestione benzina. Il consumo effettivo di GPL può essere superiore. FuelCalc applica una correzione stimata, non una misurazione diretta.</p>
       <p class="meta">L’eventuale benzina usata per gli avviamenti è esclusa dal costo GPL.</p>
-      <p class="meta" id="gpl-reading-summary" hidden></p>
       <p class="meta" id="gpl-status" role="status"></p>
     </section>
     <div class="price">
@@ -606,12 +608,13 @@
   const gplFactor = byId('gpl-factor');
   const gplStatus = byId('gpl-status');
   let gplName = typeof saved.gplName === 'string' ? saved.gplName : '';
-  let standaloneGpl = saved.standaloneGpl && typeof saved.standaloneGpl === 'object' ? saved.standaloneGpl : {};
-  gplMode.value = saved.gplMode === 'board' ? 'board' : 'real';
+  let standaloneGpl = saved.standaloneGpl && typeof saved.standaloneGpl === 'object' ? saved.standaloneGpl : { profile: 'mito' };
+  if (saved.gplDefaultsV2 !== true) standaloneGpl = { ...standaloneGpl, profile: 'mito' };
+  gplMode.value = saved.gplDefaultsV2 === true && saved.gplMode === 'real' ? 'real' : 'board';
 
   function gplConfig() {
     return gplName
-      ? (vehicleCatalog().gpl || []).find(entry => entry?.name === gplName) || {}
+      ? (vehicleCatalog().gpl || []).find(entry => entry?.name === gplName) || { profile: 'mito' }
       : standaloneGpl;
   }
 
@@ -645,7 +648,10 @@
 
   function showGplSettings() {
     byId('gpl-settings').hidden = fuel !== 'gpl';
-    byId('gpl-board').hidden = gplMode.value !== 'board';
+    const board = gplMode.value === 'board';
+    byId('gpl-advanced').hidden = !board;
+    byId('efficiency-label').textContent = fuel !== 'gpl' ? 'Consumo medio'
+      : board ? 'Consumo di bordo' : 'Consumo GPL misurato';
     const names = vehicleNames().filter(name => !vehicleCatalog().archived.includes(name));
     if (!names.includes(gplName)) gplName = '';
     fillVehicleSelect(gplVehicle, names);
@@ -708,7 +714,7 @@
     try {
       localStorage.setItem(storageKey, JSON.stringify({
         fuel, distance: distance.value, efficiency: efficiency.value, manual, records, checkedAt,
-        gplName, gplMode: gplMode.value, standaloneGpl
+        gplName, gplMode: gplMode.value, standaloneGpl, gplDefaultsV2: true
       }));
     } catch {
       // Il calcolatore resta utilizzabile quando il browser blocca la memoria locale.
@@ -744,14 +750,25 @@
     const kmPerLitre = corrected ? original * factor : original;
     const estimated = fuel === 'gpl' && mode === 'board';
     const correctionOutput = byId('gpl-reading-summary');
-    correctionOutput.hidden = !estimated || (corrected && !positive(kmPerLitre));
-    correctionOutput.textContent = corrected && positive(kmPerLitre)
-      ? 'Computer di bordo: ' + decimal.format(original) + ' km/l · GPL stimato: ' + decimal.format(kmPerLitre) + ' km/l. Conversione applicata.'
-      : estimated && !corrected ? 'Dato di bordo usato senza correzione.' : '';
+    if (estimated && corrected && positive(kmPerLitre)) {
+      const summary = document.createElement('strong');
+      summary.textContent = 'GPL stimato: ' + decimal.format(kmPerLitre) + ' km/l';
+      correctionOutput.replaceChildren(summary, 'Da ' + decimal.format(original) + ' km/l di bordo. La spesa usa il valore stimato.');
+    } else {
+      correctionOutput.textContent = !estimated
+        ? 'Inserisci il consumo GPL misurato ai pieni. La spesa usa direttamente questo valore.'
+        : corrected ? 'Inserisci i km/l indicati sul cruscotto per vedere la stima GPL.'
+          : 'Nessuna correzione attiva. Il calcolo usa il dato inserito.';
+    }
+    const config = gplConfig();
+    const source = config.manual?.trim() ? 'coefficiente manuale'
+      : positive(config.calibrated) ? 'calibrazione ai pieni' : 'MiTo 1.4 T-Jet GPL 120 CV';
+    byId('gpl-active-source').textContent = !estimated ? ''
+      : corrected ? 'Correzione GPL: ' + source : 'Correzione GPL disattivata';
     byId('gpl-coefficient').textContent = corrected
       ? 'Coefficiente applicato: ' + new Intl.NumberFormat('it-IT', { maximumFractionDigits: 12 }).format(factor)
-        + (gplConfig().profile === 'mito' && !gplConfig().manual && !positive(gplConfig().calibrated)
-          ? ' (6,1 ÷ 8,1). Presuppone un consumo di bordo equivalente a benzina.' : '')
+        + (source === 'MiTo 1.4 T-Jet GPL 120 CV'
+          ? ' (6,1 ÷ 8,1). Il profilo presuppone un consumo di bordo equivalente a benzina.' : '')
       : 'Nessun coefficiente valido: usi il dato di bordo senza correzione.';
     byId('litres-label').textContent = estimated ? 'Litri GPL stimati' : 'Litri consumati';
     byId('result-title').textContent = estimated ? 'Costo totale stimato' : 'Costo totale';

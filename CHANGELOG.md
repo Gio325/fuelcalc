@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1
+
+- Correzione GPL accanto al campo del consumo nel calcolatore web e Android.
+- Computer di bordo e profilo MiTo 1.4 T-Jet predefiniti, con stima GPL visibile durante l’inserimento.
+- Scelta diretta del consumo misurato ai pieni e impostazioni del profilo in una sezione separata.
+
 ## 1.5.0
 
 - Correzione GPL nel calcolatore web e Android con scelta tra consumo misurato e computer di bordo.

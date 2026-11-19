@@ -18,7 +18,7 @@ test('precache, upgrade and offline navigation', async () => {
     async put(url, response) { content.set(url, response); }
   };
   vm.runInNewContext(fs.readFileSync(new URL('../sw.js', 'file://' + __filename), 'utf8'), {
-    URL, caches: { open: async () => cache, keys: async () => ['fuelcalc-shell-v1', 'fuelcalc-shell-v2', 'other'],
+    URL, caches: { open: async () => cache, keys: async () => ['fuelcalc-shell-v1', 'fuelcalc-shell-v3', 'other'],
       delete: async key => removed.push(key) },
     self: { location: { href: home + 'sw.js' }, addEventListener: (n, f) => listeners[n] = f,
       clients: { claim: async () => { claimed = true; } } },

@@ -2,13 +2,13 @@
 
 Calcola quanto spendi in **benzina, GPL o diesel** e tieni traccia dei viaggi per mezzo.
 
-**[Apri la web app](https://gio325.github.io/fuelcalc/)** · **[Release Android su GitHub](https://github.com/Gio325/fuelcalc/releases)** · **[Novità 1.5.0](./CHANGELOG.md#150)**
+**[Apri la web app](https://gio325.github.io/fuelcalc/)** · **[Release Android su GitHub](https://github.com/Gio325/fuelcalc/releases)** · **[Novità 1.5.1](./CHANGELOG.md#151)**
 
 ## Scegli la versione
 
 | Versione | Come si usa |
 | --- | --- |
-| **Android 1.5.0** | App nativa in Kotlin e Jetpack Compose. Richiede Android 8.0 o successivo. |
+| **Android 1.5.1** | App nativa in Kotlin e Jetpack Compose. Richiede Android 8.0 o successivo. |
 | **Web** | Funziona nel browser e si può aggiungere alla schermata Home su Android e iPhone. |
 
 Su Android, apri l’APK e segui la richiesta di installazione del telefono. La release usa una firma dedicata. Un APK debug precedente con firma diversa blocca l’aggiornamento diretto. La disinstallazione elimina lo storico locale.
@@ -39,7 +39,7 @@ Scegli il carburante, inserisci i chilometri percorsi e il consumo medio in **km
 
 ## Correzione del consumo GPL
 
-Seleziona **GPL → Correzione consumo GPL**. **Consumo GPL reale** usa direttamente il valore che hai misurato. Se usi **Computer di bordo**, seleziona il tuo mezzo e configura un profilo o un coefficiente specifico. Se manca un coefficiente valido, FuelCalc calcola la spesa dal dato inserito e segnala che è una stima senza correzione. Puoi anche usare il calcolatore senza associare la configurazione a un mezzo.
+Seleziona **GPL** nel calcolatore e digita i km/l che leggi sul cruscotto. Con **Computer di bordo**, FuelCalc applica il profilo MiTo 1.4 T-Jet per impostazione predefinita e mostra subito la stima GPL sotto il campo. Per esempio, **15 km/l di bordo → circa 11,30 km/l a GPL**. La spesa usa il valore stimato. Per cambiare veicolo o coefficiente, apri **Profilo e calibrazione GPL**. Se conosci già il consumo effettivo, seleziona **GPL misurato ai pieni** per usare direttamente quel valore.
 
 - **Alfa Romeo MiTo 1.4 T-Jet GPL 120 CV (2009).** Il profilo usa i valori del ciclo misto, 6,1 l/100 km a benzina e 8,1 l/100 km a GPL. FuelCalc moltiplica i km/l di bordo per `6,1 ÷ 8,1`. La stima presuppone che il dato del cruscotto sia confrontabile con un consumo a benzina. Il rapporto non dimostra come il computer di bordo calcoli i consumi reali. [Gazzetta Ufficiale del 21 giugno 2011, p. 21](https://www.gazzettaufficiale.it/do/atto/serie_generale/caricaPdf?art.codiceRedazionale=11A07396&art.dataPubblicazioneGazzetta=2011-06-21&art.num=1&art.tiposerie=SG&cdimg=11A0739600100010110002&dgu=2011-06-21)
 - **Calibra consumo GPL.** Parti da un pieno e, al secondo pieno comparabile, inserisci chilometri percorsi, litri GPL effettivamente riforniti e media di bordo dello stesso intervallo. Il coefficiente è `(km ÷ litri riforniti) ÷ km/l di bordo`. Usa possibilmente lo stesso distributore e confronta più pieni. Il valore manuale, se inserito, ha precedenza sulla calibrazione e sul profilo. **Ripristina coefficiente del profilo** rimuove entrambi i valori personalizzati.

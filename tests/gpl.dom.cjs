@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const html = fs.readFileSync(new URL('../index.html', 'file://' + __filename), 'utf8');
 const events = [];
 let storage = {
+ 'fuelcalc.v1': JSON.stringify({gplMode:'real',standaloneGpl:{profile:''}}),
  'fuelcalc.vehicles.v1': JSON.stringify(['MiTo','Altra auto']),
  'fuelcalc.trips.v1': JSON.stringify([{vehicle:'MiTo',fuel:'gpl',km:50,litres:4,total:3.5,savedAt:Date.now()-3600000}])
 };
@@ -30,13 +31,17 @@ const fill=(id,v)=>option(id,v,'input');
 const check=(id,part)=>assert.ok(el(id).textContent.includes(part),id+': '+el(id).textContent+' expected '+part);
 boot();
 fuel('gpl'); fill('distance','100'); fill('efficiency','14,0'); fill('price','0,70');
-check('total','5,00');
-option('gpl-mode','board'); check('gpl-coefficient','Nessun coefficiente valido'); check('total','5,00');
+assert.equal(el('gpl-mode').value,'board');
+assert.equal(el('gpl-advanced').open,false);
+check('gpl-active-source','MiTo 1.4 T-Jet'); check('total','6,64');
+fill('efficiency','15');check('gpl-reading-summary','11,3 km/l');check('total','6,20');
+option('gpl-mode','real');check('total','4,67');reload();assert.equal(el('gpl-mode').value,'real');
+option('gpl-mode','board');fill('efficiency','14,0');
 option('gpl-vehicle','MiTo');option('gpl-profile','mito');
 check('gpl-reading-summary','10,54');check('litres','9,48');check('total','6,64');check('per-km','0,066');check('per-100','6,64');
 fill('gpl-km','300');fill('gpl-litres','25');fill('gpl-reading','15');
 send(el('gpl-form'),'submit');check('total','6,25');reload();check('total','6,25');
-option('gpl-vehicle','Altra auto');check('total','5,00');option('gpl-vehicle','MiTo');el('gpl-restore').click();check('total','6,64');
+option('gpl-vehicle','Altra auto');option('gpl-profile','');check('total','5,00');option('gpl-vehicle','MiTo');el('gpl-restore').click();check('total','6,64');
 fill('gpl-factor','0.5');check('total','10,00');fill('gpl-factor','0');check('total','5,00');el('gpl-restore').click();
 for(const next of ['benzina','diesel']){fuel(next);fill('price','1.40');check('total','10,00');assert.equal(el('gpl-settings').hidden,true);}
 fuel('gpl');check('total','6,64');
