@@ -240,6 +240,13 @@
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
   @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  #gpl-settings { margin-top: 12px; }
+  #gpl-settings summary { cursor: pointer; padding: 9px 0; font-weight: 700; }
+  #gpl-settings select, #gpl-settings input { width: 100%; max-width: 100%; min-width: 0; }
+  #gpl-settings .field { display: block; margin-top: 8px; }
+  #gpl-settings .meta { color: #c2c2bf; }
+  #gpl-calibration { margin: 10px 0; }
+  #gpl-calibration button { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -264,6 +271,46 @@
         <span class="entry"><input id="efficiency" type="text" inputmode="decimal" autocomplete="off" maxlength="16" placeholder="0"><span class="unit">km/l</span></span>
       </label>
     </div>
+    <section id="gpl-settings" hidden>
+      <details>
+        <summary>Correzione consumo GPL</summary>
+        <label class="field" for="gpl-mode">Origine del consumo</label>
+        <select class="entry" id="gpl-mode">
+          <option value="real">Consumo GPL reale</option>
+          <option value="board">Computer di bordo</option>
+        </select>
+        <div id="gpl-board" hidden>
+          <label class="field" for="gpl-vehicle">Impostazioni GPL del mezzo</label>
+          <select class="entry" id="gpl-vehicle"></select>
+          <label class="field" for="gpl-profile">Profilo</label>
+          <select class="entry" id="gpl-profile">
+            <option value="">Nessun profilo</option>
+            <option value="mito">Alfa Romeo MiTo 1.4 T-Jet GPL 120 CV (2009)</option>
+          </select>
+          <label class="field" for="gpl-factor">Coefficiente manuale (facoltativo)</label>
+          <input class="entry" id="gpl-factor" inputmode="decimal" maxlength="24" autocomplete="off">
+          <details id="gpl-calibration">
+            <summary>Calibra consumo GPL</summary>
+            <p class="meta">Usa due pieni comparabili, possibilmente allo stesso distributore. Inserisci i litri realmente riforniti al secondo pieno. Più pieni comparabili danno una stima più affidabile.</p>
+            <form id="gpl-form">
+              <label class="field" for="gpl-km">Km tra i due pieni</label>
+              <input class="entry" id="gpl-km" inputmode="decimal" maxlength="16">
+              <label class="field" for="gpl-litres">Litri GPL riforniti</label>
+              <input class="entry" id="gpl-litres" inputmode="decimal" maxlength="16">
+              <label class="field" for="gpl-reading">Computer di bordo (km/l)</label>
+              <input class="entry" id="gpl-reading" inputmode="decimal" maxlength="16">
+              <button type="submit">Salva calibrazione</button>
+            </form>
+          </details>
+          <button id="gpl-restore" type="button">Ripristina coefficiente del profilo</button>
+          <p class="meta" id="gpl-coefficient" role="status"></p>
+        </div>
+      </details>
+      <p class="meta">Il computer di bordo di alcune auto GPL può mostrare consumi calcolati sulla base della gestione benzina. Il consumo effettivo di GPL può essere superiore. FuelCalc applica una correzione stimata, non una misurazione diretta.</p>
+      <p class="meta">L’eventuale benzina usata per gli avviamenti è esclusa dal costo GPL.</p>
+      <p class="meta" id="gpl-reading-summary" hidden></p>
+      <p class="meta" id="gpl-status" role="status"></p>
+    </section>
     <div class="price">
       <div class="price-row">
         <label class="field" for="price">Prezzo al litro
@@ -282,7 +329,7 @@
     <h2 id="result-title">Costo totale</h2>
     <output id="total" aria-live="polite">—</output>
     <dl>
-      <div><dt>Litri consumati</dt><dd id="litres">—</dd></div>
+      <div><dt id="litres-label">Litri consumati</dt><dd id="litres">—</dd></div>
       <div><dt>Per 100 km</dt><dd id="per-100">—</dd></div>
       <div><dt>Per km</dt><dd id="per-km">—</dd></div>
     </dl>
@@ -400,6 +447,7 @@
   const tripError = byId('trip-error');
   let currentTrip;
   let pendingTrip;
+  let pendingGplVehicle;
 
   function loadTrips() {
     try {
@@ -414,7 +462,9 @@
     try {
       const saved = JSON.parse(localStorage.getItem(vehicleKey));
       if (Array.isArray(saved)) return { active: saved, archived: [] };
-      if (Array.isArray(saved?.active) && Array.isArray(saved?.archived)) return saved;
+      if (Array.isArray(saved?.active) && Array.isArray(saved?.archived)) {
+        return { ...saved, gpl: Array.isArray(saved.gpl) ? saved.gpl : [] };
+      }
     } catch {
       // Usa un elenco vuoto quando i dati locali non sono leggibili.
     }
@@ -509,6 +559,16 @@
       remove.textContent = 'Elimina';
       remove.setAttribute('aria-label', 'Elimina viaggio di ' + trip.vehicle + ' del ' + checkTime.format(trip.savedAt));
       remove.addEventListener('click', () => removeTrip(trips, index));
+      if (trip.fuel === 'gpl' && trip.gpl) {
+        const note = document.createElement('span');
+        note.className = 'meta';
+        const gpl = trip.gpl;
+        note.textContent = gpl.mode === 'real' ? 'Consumo GPL misurato: ' + decimal.format(gpl.original) + ' km/l'
+          : positive(gpl.coefficient) ? 'Stima GPL: ' + decimal.format(gpl.original) + ' → ' + decimal.format(gpl.effective)
+            + ' km/l · coeff. ' + new Intl.NumberFormat('it-IT', { maximumFractionDigits: 12 }).format(gpl.coefficient)
+            : 'Stima GPL da computer di bordo senza correzione: ' + decimal.format(gpl.original) + ' km/l';
+        details.append(note);
+      }
       row.className = 'trip-row';
       row.append(info, remove);
       list.append(row);
@@ -539,6 +599,100 @@
 
   const saved = load();
   let fuel = Object.hasOwn(fuelTypes, saved.fuel) ? saved.fuel : 'benzina';
+  const mitoCoefficient = 6.1 / 8.1;
+  const gplMode = byId('gpl-mode');
+  const gplVehicle = byId('gpl-vehicle');
+  const gplProfile = byId('gpl-profile');
+  const gplFactor = byId('gpl-factor');
+  const gplStatus = byId('gpl-status');
+  let gplName = typeof saved.gplName === 'string' ? saved.gplName : '';
+  let standaloneGpl = saved.standaloneGpl && typeof saved.standaloneGpl === 'object' ? saved.standaloneGpl : {};
+  gplMode.value = saved.gplMode === 'board' ? 'board' : 'real';
+
+  function gplConfig() {
+    return gplName
+      ? (vehicleCatalog().gpl || []).find(entry => entry?.name === gplName) || {}
+      : standaloneGpl;
+  }
+
+  function positive(value) {
+    return Number.isFinite(value) && value > 0;
+  }
+
+  function coefficient(config) {
+    if (typeof config.manual === 'string' && config.manual.trim()) return numberFrom(config.manual);
+    if (positive(config.calibrated)) return config.calibrated;
+    return config.profile === 'mito' ? mitoCoefficient : NaN;
+  }
+
+  function writeGpl(config) {
+    if (gplName) {
+      const catalog = vehicleCatalog();
+      catalog.gpl = [...(catalog.gpl || []).filter(entry => entry?.name !== gplName), { ...config, name: gplName }];
+      try {
+        localStorage.setItem(vehicleKey, JSON.stringify(catalog));
+      } catch {
+        gplStatus.textContent = 'Impossibile salvare le impostazioni del mezzo.';
+        return;
+      }
+    } else {
+      standaloneGpl = config;
+    }
+    save();
+    showGplSettings();
+    renderResults();
+  }
+
+  function showGplSettings() {
+    byId('gpl-settings').hidden = fuel !== 'gpl';
+    byId('gpl-board').hidden = gplMode.value !== 'board';
+    const names = vehicleNames().filter(name => !vehicleCatalog().archived.includes(name));
+    if (!names.includes(gplName)) gplName = '';
+    fillVehicleSelect(gplVehicle, names);
+    gplVehicle.prepend(new Option('Senza mezzo (solo calcolatore)', ''));
+    gplVehicle.value = gplName;
+    const config = gplConfig();
+    gplProfile.value = config.profile === 'mito' ? 'mito' : '';
+    gplFactor.value = config.manual || '';
+    byId('gpl-restore').disabled = !config.manual && !positive(config.calibrated);
+  }
+
+  gplMode.addEventListener('change', () => { showGplSettings(); save(); renderResults(); });
+  gplVehicle.addEventListener('change', () => {
+    gplName = gplVehicle.value;
+    gplStatus.textContent = '';
+    byId('gpl-form').reset();
+    showGplSettings();
+    save();
+    renderResults();
+  });
+  gplProfile.addEventListener('change', () => {
+    gplStatus.textContent = '';
+    writeGpl({ ...gplConfig(), profile: gplProfile.value });
+  });
+  gplFactor.addEventListener('input', () => {
+    const start = gplFactor.selectionStart;
+    const end = gplFactor.selectionEnd;
+    gplStatus.textContent = '';
+    writeGpl({ ...gplConfig(), manual: gplFactor.value });
+    gplFactor.setSelectionRange(start, end);
+  });
+  byId('gpl-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const [km, litres, board] = ['gpl-km', 'gpl-litres', 'gpl-reading'].map(id => numberFrom(byId(id).value));
+    const calibrated = km / litres / board;
+    if (![km, litres, board, calibrated].every(positive)) {
+      gplStatus.textContent = 'Inserisci tre valori validi maggiori di zero.';
+      return;
+    }
+    gplStatus.textContent = 'Calibrazione applicata.';
+    writeGpl({ ...gplConfig(), manual: '', calibrated });
+  });
+  byId('gpl-restore').addEventListener('click', () => {
+    gplStatus.textContent = 'Coefficiente personalizzato rimosso.';
+    writeGpl({ profile: gplConfig().profile });
+  });
+
   const manual = {};
   const records = {};
   const recovered = new Set();
@@ -553,7 +707,8 @@
   function save() {
     try {
       localStorage.setItem(storageKey, JSON.stringify({
-        fuel, distance: distance.value, efficiency: efficiency.value, manual, records, checkedAt
+        fuel, distance: distance.value, efficiency: efficiency.value, manual, records, checkedAt,
+        gplName, gplMode: gplMode.value, standaloneGpl
       }));
     } catch {
       // Il calcolatore resta utilizzabile quando il browser blocca la memoria locale.
@@ -582,13 +737,32 @@
 
   function renderResults() {
     const km = numberFrom(distance.value);
-    const kmPerLitre = numberFrom(efficiency.value);
+    const original = numberFrom(efficiency.value);
+    const mode = gplMode.value === 'board' ? 'board' : 'real';
+    const factor = fuel === 'gpl' && mode === 'board' ? coefficient(gplConfig()) : NaN;
+    const corrected = positive(factor);
+    const kmPerLitre = corrected ? original * factor : original;
+    const estimated = fuel === 'gpl' && mode === 'board';
+    const correctionOutput = byId('gpl-reading-summary');
+    correctionOutput.hidden = !estimated || (corrected && !positive(kmPerLitre));
+    correctionOutput.textContent = corrected && positive(kmPerLitre)
+      ? 'Computer di bordo: ' + decimal.format(original) + ' km/l · GPL stimato: ' + decimal.format(kmPerLitre) + ' km/l. Conversione applicata.'
+      : estimated && !corrected ? 'Dato di bordo usato senza correzione.' : '';
+    byId('gpl-coefficient').textContent = corrected
+      ? 'Coefficiente applicato: ' + new Intl.NumberFormat('it-IT', { maximumFractionDigits: 12 }).format(factor)
+        + (gplConfig().profile === 'mito' && !gplConfig().manual && !positive(gplConfig().calibrated)
+          ? ' (6,1 ÷ 8,1). Presuppone un consumo di bordo equivalente a benzina.' : '')
+      : 'Nessun coefficiente valido: usi il dato di bordo senza correzione.';
+    byId('litres-label').textContent = estimated ? 'Litri GPL stimati' : 'Litri consumati';
+    byId('result-title').textContent = estimated ? 'Costo totale stimato' : 'Costo totale';
     const perLitre = numberFrom(price.value);
     const litres = km >= 0 && kmPerLitre > 0 ? km / kmPerLitre : NaN;
     const perKm = kmPerLitre > 0 && perLitre > 0 ? perLitre / kmPerLitre : NaN;
     const total = litres * perLitre;
     currentTrip = km > 0 && perLitre > 0 && Number.isFinite(total)
-      ? { fuel, km, litres, total } : null;
+      ? { fuel, km, litres, total, ...(fuel === 'gpl' ? { gpl: {
+        mode, original, effective: kmPerLitre, coefficient: corrected ? factor : null, estimated
+      } } : {}) } : null;
     saveTrip.disabled = !currentTrip;
     showTotal(perLitre > 0 && Number.isFinite(total) ? euro.format(total) : '—');
     byId('litres').textContent = Number.isFinite(litres) ? decimal.format(litres) + ' l' : '—';
@@ -669,6 +843,7 @@
     radio.addEventListener('change', () => {
       fuel = radio.value;
       save();
+      showGplSettings();
       renderPrice();
     });
   }
@@ -712,13 +887,14 @@
   saveTrip.addEventListener('click', () => {
     if (!currentTrip) return;
     pendingTrip = currentTrip;
+    pendingGplVehicle = pendingTrip.gpl?.mode === 'board' ? gplName : '';
     const names = vehicleNames().filter(name => !vehicleCatalog().archived.includes(name));
     fillVehicleSelect(tripVehicle, names);
     const addOption = document.createElement('option');
     addOption.value = '';
     addOption.textContent = 'Aggiungi un mezzo';
     tripVehicle.append(addOption);
-    tripVehicle.value = names.includes(historyVehicle.value) ? historyVehicle.value : (names[0] ?? '');
+    tripVehicle.value = pendingGplVehicle ? pendingGplVehicle : names.includes(historyVehicle.value) ? historyVehicle.value : (names[0] ?? '');
     vehicleName.value = '';
     updateNewVehicleField();
     tripError.hidden = true;
@@ -740,6 +916,7 @@
     }
     const catalog = vehicleCatalog();
     const renamed = {
+      gpl: (catalog.gpl || []).map(entry => entry.name === previous ? { ...entry, name } : entry),
       active: catalog.active.map(item => item === previous ? name : item),
       archived: catalog.archived.map(item => item === previous ? name : item)
     };
@@ -757,6 +934,10 @@
       status.textContent = 'Impossibile rinominare il mezzo.';
       return;
     }
+    if (gplName === previous) gplName = name;
+    showGplSettings();
+    save();
+    renderResults();
     renderTrips(name);
     status.textContent = 'Mezzo rinominato.';
   });
@@ -774,6 +955,7 @@
     const catalog = vehicleCatalog();
     catalog.active = catalog.active.filter(item => item !== name);
     if (hasTrips && !catalog.archived.includes(name)) catalog.archived.push(name);
+    if (!hasTrips) catalog.gpl = (catalog.gpl || []).filter(entry => entry.name !== name);
     try {
       localStorage.setItem(vehicleKey, JSON.stringify(catalog));
     } catch {
@@ -781,6 +963,9 @@
       return;
     }
     renderTrips();
+    showGplSettings();
+    save();
+    renderResults();
     status.textContent = hasTrips ? 'Mezzo archiviato.' : 'Mezzo rimosso.';
   });
 
@@ -798,6 +983,7 @@
       const vehicle = addVehicle(name);
       renderTrips(vehicle);
       field.value = '';
+      showGplSettings();
       status.textContent = 'Mezzo disponibile nello storico.';
     } catch {
       status.textContent = 'Impossibile salvare il mezzo sul dispositivo.';
@@ -807,6 +993,11 @@
   byId('trip-form').addEventListener('submit', event => {
     event.preventDefault();
     if (!pendingTrip || !tripDialog.open) return;
+    if (pendingGplVehicle && tripVehicle.value !== pendingGplVehicle) {
+      tripError.textContent = 'Seleziona il mezzo usato per il calcolo GPL. Per cambiarlo, torna al calcolatore.';
+      tripError.hidden = false;
+      return;
+    }
     const name = tripVehicle.value || vehicleName.value.trim();
     let vehicle;
     if (!name) {
@@ -873,6 +1064,7 @@
     // I mezzi dei viaggi esistenti rimangono disponibili anche se la migrazione non riesce.
   }
   renderTrips();
+  showGplSettings();
   renderPrice();
   refresh();
 

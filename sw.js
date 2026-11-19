@@ -1,11 +1,13 @@
 const cachePrefix = 'fuelcalc-shell-';
-const cacheName = cachePrefix + 'v1';
+const cacheName = cachePrefix + 'v2';
 const home = new URL('./', self.location.href).href;
 const index = new URL('./index.html', self.location.href).href;
 
+const assets = ['./manifest.webmanifest', './icon.svg'].map(path => new URL(path, home).href);
+
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(cacheName).then(cache =>
-    cache.addAll([home, './manifest.webmanifest', './icon.svg'])
+    cache.addAll([home, ...assets])
   ));
 });
 
@@ -21,7 +23,12 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
-  if (request.mode !== 'navigate' || request.method !== 'GET') return;
+  if (request.method !== 'GET') return;
+  if (assets.includes(url.href)) {
+    event.respondWith(caches.open(cacheName).then(cache => cache.match(request)).then(saved => saved || fetch(request)));
+    return;
+  }
+  if (request.mode !== 'navigate') return;
   url.search = '';
   if (url.href !== home && url.href !== index) return;
 

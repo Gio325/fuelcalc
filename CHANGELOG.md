@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Correzione GPL nel calcolatore web e Android con scelta tra consumo misurato e computer di bordo.
+- Profilo opzionale MiTo, coefficiente manuale e calibrazione dai rifornimenti per mezzo.
+- Risultati con indicazione della stima e nuovi dettagli GPL nello storico. I viaggi precedenti mantengono gli importi salvati.
+- Aggiornamento della cache offline e migrazione Android di Room e DataStore.
+
 ## Android 1.4.10
 
 - Dettagli di ogni viaggio più grandi e chiari, con data e ora su una riga dedicata.
