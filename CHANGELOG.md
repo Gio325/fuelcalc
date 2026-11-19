@@ -1,5 +1,20 @@
 # Changelog
 
+## Android 1.4.9
+
+- Nuova icona dello **Storico viaggi**, con macchinina e orologio, nella testata del calcolatore.
+- Compilazione e firma dell’APK verificate. 13 test automatici superati.
+
+## Android 1.4.8
+
+- Transizioni con dissolvenza e scorrimento laterale tra calcolatore e storico.
+- Posizione di scorrimento conservata separatamente per le due schermate.
+
+## Android 1.4.7
+
+- Storico in una schermata dedicata, accessibile dall’intestazione.
+- Arrotondamento corretto al centesimo e totale mensile coerente con gli importi mostrati per i singoli viaggi.
+
 ## Android 1.0.0 — 18 novembre 2026
 
 - Prima release Android nativa, con firma dedicata e compatibilità da Android 8.0.
