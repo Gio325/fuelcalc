@@ -1068,7 +1068,7 @@
   renderPrice();
   refresh();
 
-  if (location.protocol === 'https:' && 'serviceWorker' in navigator) {
+  if (window.isSecureContext && location.protocol !== 'file:' && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(error => {
       console.warn('Installazione offline di FuelCalc non disponibile', error);
     });
