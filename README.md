@@ -2,13 +2,13 @@
 
 Calcola quanto spendi in **benzina, GPL o diesel** e tieni traccia dei viaggi per mezzo.
 
-**[Apri la web app](https://gio325.github.io/fuelcalc/)** · **[Release Android su GitHub](https://github.com/Gio325/fuelcalc/releases)**
+**[Apri la web app](https://gio325.github.io/fuelcalc/)** · **[Release Android su GitHub](https://github.com/Gio325/fuelcalc/releases)** · **[Novità Android 1.4.9](./CHANGELOG.md#android-149)**
 
 ## Scegli la versione
 
 | Versione | Come si usa |
 | --- | --- |
-| **Android 1.0.0** | App nativa in Kotlin e Jetpack Compose, disponibile come APK firmato. Richiede Android 8.0 o successivo. |
+| **Android 1.4.9** | App nativa in Kotlin e Jetpack Compose. Richiede Android 8.0 o successivo. |
 | **Web** | Funziona nel browser e si può aggiungere alla schermata Home su Android e iPhone. |
 
 Su Android, apri l’APK e segui la richiesta di installazione del telefono. La release usa una firma dedicata. Un APK debug precedente con firma diversa blocca l’aggiornamento diretto. La disinstallazione elimina lo storico locale.
@@ -22,6 +22,12 @@ Per aggiungere la web app alla schermata Home, usa **⋮ → Aggiungi a schermat
 - Salvare i viaggi per mezzo e vedere i totali mensili.
 - Aggiungere, rinominare e archiviare un mezzo con viaggi associati.
 - Eliminare singoli viaggi oppure azzerare lo storico con una doppia conferma.
+
+## Novità dell’app Android
+
+Nella **1.4.9**, il pulsante in alto a destra mostra una macchinina con un orologio. Toccalo per aprire lo **Storico viaggi**, gestire i mezzi e consultare i totali mensili. Il passaggio tra calcolatore e storico usa una breve dissolvenza con scorrimento laterale.
+
+I widget Android **Viaggio rapido** e **Storico viaggi** permettono di calcolare e salvare un viaggio dalla Home o rivedere quelli recenti.
 
 ## Come si calcola la spesa
 
