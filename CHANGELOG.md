@@ -1,5 +1,10 @@
 # Changelog
 
+## Android 1.4.10
+
+- Dettagli di ogni viaggio più grandi e chiari, con data e ora su una riga dedicata.
+- Cestino rosso per eliminare un viaggio con conferma, più per aggiungere un mezzo e matita per rinominarlo.
+
 ## Android 1.4.9
 
 - Nuova icona dello **Storico viaggi**, con macchinina e orologio, nella testata del calcolatore.
