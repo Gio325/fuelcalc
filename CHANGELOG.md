@@ -1,5 +1,13 @@
 # Changelog
 
+## Android 1.5.3
+
+- Il widget **Storico viaggi** si può ridimensionare in altezza e larghezza.
+
+## Android 1.5.2
+
+- Il widget **Storico viaggi** si può allungare in verticale e mostra fino a dieci viaggi recenti in base allo spazio disponibile.
+
 ## 1.5.1
 
 - Correzione GPL accanto al campo del consumo nel calcolatore web e Android.
